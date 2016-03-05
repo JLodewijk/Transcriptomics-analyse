@@ -377,6 +377,7 @@ lm.fit.2 <-
   lm(ENSG00000229344.1_RP5.857K21.7 ~ .,
      data = expr4T.filtered,
      subset = train.expr4T.data)
+
 lm.fit.2.two.tissues <-
   lm(ENSG00000229344.1_RP5.857K21.7 ~ .,
      data = mydat[,1:70],
@@ -411,12 +412,12 @@ sqrt(vif(lm.fit.2)) > 2
 
 # Perform a linear model using all the terms in te model
 lm.fit.3 <-
-  lm(ENSG00000125144.9_MT1G ~ .,
+  lm(ENSG00000198695.2_MT.ND6 ~ .,
      data = expr4T.filtered,
      subset = train.expr4T.data)
 
 lm.fit.3.two.tissues <-
-  lm(ENSG00000125144.9_MT1G ~ .,
+  lm(ENSG00000198695.2_MT.ND6 ~ .,
      data = mydat, #heRE WE USE THE WHOLE DATA SET, OTHERWISE THE GENE IS NOT FOUND
      subset = train.mydat)
 
@@ -426,7 +427,7 @@ plot(lm.fit.3)
 plot(lm.fit.3.two.tissues)
 
 PredictivePerformanceLm(
-  y = "ENSG00000125144.9_MT1G",
+  y = "ENSG00000198695.2_MT.ND6",
   data.set = expr4T.filtered,
   training.data = train.expr4T.data,
   lm.training = lm.fit.3
@@ -434,7 +435,7 @@ PredictivePerformanceLm(
 # Seems the trainings set explains quite a lot of the test set. So it seems like a good model.
 
 PredictivePerformanceLm(
-  y = "ENSG00000125144.9_MT1G",
+  y = "ENSG00000198695.2_MT.ND6",
   data.set = mydat,
   training.data = train.mydat,
   lm.training = lm.fit.3.two.tissues
