@@ -773,8 +773,7 @@ rf.best.genes <- randomForest(
   ntree = 500,
   importance = TRUE
 )
-yhat.rf <- predict (rf.best.genes, newdata = mydat[-train.mydat,])
-1-mean(yhat.rf == mydat[-train.mydat,]$tissue)
+error.rate.prediction.trees(tree.data = rf.best.genes, dataset = mydat, test.set = -train.mydat)
 
 # Generate a random forest of the worst genes for the classification problem.
 rf.worst.genes <- randomForest(
@@ -785,8 +784,7 @@ rf.worst.genes <- randomForest(
   ntree = 500,
   importance = TRUE
 )
-yhat.worst <- predict (rf.worst.genes, newdata = mydat[-train.mydat,])
-1-mean(yhat.worst == mydat[-train.mydat,]$tissue)
+error.rate.prediction.trees(tree.data = rf.worst.genes, dataset = mydat, test.set = -train.mydat)
 
 ###############
 # Question 3  #
