@@ -203,9 +203,9 @@ tissue.selection <- function(tissue1, tissue2, data = data.frame(expr4T.filtered
 #' @param dataset: dataset used for performing a randomForest upon.
 #' @param train.set: list of indexes indicating the entries of the trainings set.
 #' @param test.set: list of indexes indicating the entries of the test set.
-#'
+#' @param column.index: column that is being used for the training and testing of data.
 #' @return data.frame containing each of the P's MSE as a column.
-DetermineEffectPsRandomForest <- function(dataset, train.set, test.set){
+DetermineEffectPsRandomForest <- function(dataset, train.set, test.set, column.index){
   
   # Use different P's to see the effect on randomForest.
   p <- ncol(dataset) - 1
@@ -213,10 +213,10 @@ DetermineEffectPsRandomForest <- function(dataset, train.set, test.set){
   p.3 <- sqrt(p)
   
   # Create different train and test sets for the data for the classification problem
-  train.X <- dataset[train.set,-152]
-  test.X <- dataset[test.set,-152]
-  train.Y <- dataset[train.set, 152]
-  test.Y <- dataset[test.set, 152]
+  train.X <- dataset[train.set,-column.index]
+  test.X <- dataset[test.set,-column.index]
+  train.Y <- dataset[train.set, column.index]
+  test.Y <- dataset[test.set, column.index]
   
   # Run the randomforest, each of them has a different P. But all of them have the same ntree and datasets.
   rf.tissue.p <- randomForest(
@@ -637,6 +637,10 @@ prune.tree.regression <- tree.pruner(tree.regression, regression.tree = TRUE)
 error.rate.prediction.trees(tree.data = tree.regression, dataset = mydat, test.set = -train.mydat, type.prediction = "vector")
 error.rate.prediction.trees(tree.data = prune.tree.regression, dataset = mydat, test.set = -train.mydat, type.prediction = "vector")
 
+# Method 2
+
+p.error.classification <- DetermineEffectPsRandomForest(dataset = mydat, train.set = train.mydat, test.set = -train.mydat, column.index = 152)
+p.error.regression <- DetermineEffectPsRandomForest(dataset = mydat, train.set = train.mydat, test.set = -train.mydat, column.index = grep("ENSG00000271043.1_MTRNR2L2", colnames(mydat)))
 
 
 ####################################################################################################################################
