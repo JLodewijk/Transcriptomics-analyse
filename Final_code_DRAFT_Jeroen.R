@@ -566,7 +566,7 @@ tissue1 <- "brain_hippocampus"
 tissue2 <- "brain_nucleusaccumbens"
 
 #specific data set
-mydat <- tissue.selection(tissue1, tissue2, data.set)
+mydat <- tissue.selection(tissue1, tissue2, expr4T.filtered)
 
 train <- sample(1:nrow(mydat), round(nrow(mydat) * 0.35))
 test.set <- mydat[-train,]
@@ -574,58 +574,20 @@ test.set <- mydat[-train,]
 #GLM model####
 tissues <- mydat$tissue
 new.data <- data.frame(mydat[,1:10], tissues)
-fit <- glm(tissues~.,
+glm.fit <- glm(tissues~.,
                 data = new.data,
                 family = binomial,
                 subset = train
 )
 
 #predictions
-
 probs <-  predict(fit, test.set, type = "response")
 pred <- rep(tissue1, nrow(test.set))
 pred[probs>0.5] = tissue2
 table(pred, test.set$tissue)
 
-
 1-mean(pred == test.set$tissue)
   
-   model1 <- fit.model(data.set =  expr4T.filtered,
-            tissues.pair = c("brain_hippocampus" , "brain_nucleusaccumbens"), 
-            fit.type = glm)
-   
-   model2 <- fit.model(data.set =  expr4T.filtered,
-                       tissues.pair = c("brain_spinalcord" , "brain_substantianigra"), 
-                       fit.type = glm)
-   
-   model3 <- fit.model(data.set =  expr4T.filtered,
-                       tissues.pair = c("brain_cerebellarhemisphere" , "brain_cerebellum"), 
-                       fit.type = glm)
-   
-   model4 <- fit.model(data.set =  expr4T.filtered,
-                       tissues.pair = c("brain_cerebellum" , "brain_amygdala"), 
-                       fit.type = glm)
-   
-   model5 <- fit.model(data.set =  expr4T.filtered,
-                       tissues.pair = c("brain_cortex" , "brain_putamen"), 
-                       fit.type = glm)
-   
-
- 
-
-
-# GLM
-
-tissues <- mydat$tissue
-new.data <- data.frame(mydat[,1:10], tissues)
-glm.fit <- glm(tissues~.,
-               data = new.data,
-               family = binomial,
-               subset = train
-)
-
-a<-summary(glm.fit)
-
 #LDA model####
 lda.fit <- lda(tissues~.,
                data = new.data,
@@ -639,7 +601,6 @@ table(lda.class, test.set$tissue)
 qda.fit <- qda(tissues~.,
                data = new.data,
                subset = train)
-summary(qda.fit)
 qda.class <- predict(qda.fit, test.set)$class
 table(qda.class, test.set$tissue)
 1-mean(qda.class== test.set$tissue)
