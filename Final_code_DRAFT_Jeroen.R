@@ -121,6 +121,31 @@ error.rate.prediction.trees <- function(tree.data, dataset, test.set, type.predi
   return( 1 - mean(prediction.tree == test.data) )
 }
 
+
+#' tree.pruner
+#' Prune trees by using cross-validation and selection for the best set usign the min.set.selection().
+#' @param tree.data: tree data that is going to be pruned.
+#' @param seed: randomseed, will not be used if randomness is TRUE.
+#' @param randomness: if a randomseed will be used or randomness will be allowed.
+#'
+#' @return pruned tree
+tree.pruner <- function(tree.data, seed = 1, randomness = FALSE){
+  # Set a seed if randomness is not wanted.
+  if(randomness == FALSE){
+    set.seed(seed)
+  }
+  
+  # Perform cross-validation on the tree.
+  cv.tissue <- cv.tree(tree.data, FUN = prune.misclass)
+  
+  # Get the best.set using the min.set.selection.
+  best.set <- min.set.selection(cv.tissue)
+  
+  # Prune the tree and return it.
+  return(prune.misclass(tree.data, best = best.set))
+}
+
+
 #' Cols
 #' Creates a range of colors that can be used for plotting.
 #' @param vec: is a vector that will be given colors ID's.
