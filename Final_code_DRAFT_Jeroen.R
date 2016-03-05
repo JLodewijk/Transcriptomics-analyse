@@ -3,11 +3,18 @@
 # Student numbers:
 #########################################
 
+
 #############
 # Packages #
 #############
 
 # install.packages("car")
+# 
+# install.packages("class")
+# 
+# install.packages("leaps")
+# 
+# install.packages("MASS")
 
 #############
 # Libraries #
@@ -33,7 +40,7 @@ library(tree)
 
 ####################
 #### Functions #####
-
+####################
 #' GlmPredictionErrorRate
 #' Perform a prediction on the test data and calculate the error rate of that prediction.
 #' @param glm.fit: Fitted generalized linear model that has been trained by a trainings set. 
@@ -121,7 +128,6 @@ error.rate.prediction.trees <- function(tree.data, dataset, test.set, type.predi
   return( 1 - mean(prediction.tree == test.data) )
 }
 
-
 #' tree.pruner
 #' Prune trees by using cross-validation and selection for the best set usign the min.set.selection().
 #' @param tree.data: tree data that is going to be pruned.
@@ -144,7 +150,6 @@ tree.pruner <- function(tree.data, seed = 1, randomness = FALSE){
   # Prune the tree and return it.
   return(prune.misclass(tree.data, best = best.set))
 }
-
 
 #' Cols
 #' Creates a range of colors that can be used for plotting.
@@ -173,7 +178,7 @@ min.set.selection <- function(cvset){ #rename
 #' @param data: data as a data.frame.
 #'
 #' @return mydata: two tissue dataset as a data.frame
-tissue.selection <- function(tissue1, tissue2, data = data.frame(expr4T)){
+tissue.selection <- function(tissue1, tissue2, data = data.frame(expr4T.filtered)){
   mydata <- data[which(data$tissue == tissue1|data$tissue == tissue2),]
   mydata <- droplevels(mydata)
   print(dim(mydata))
@@ -191,8 +196,7 @@ tissue.selection <- function(tissue1, tissue2, data = data.frame(expr4T)){
 # Load in the dataset.
 # expr4T <- read.table("M:/Pattern Recognition/Project/expr4T.dat", sep="")
 expr4T <- read.table("F:/Dropbox/Pattern Recognition/Week 1/Friday/expr4T.dat", sep="")
-
-
+###
 dim(expr4T) #Checking dimentions
 
 ####REDUCTION OF THE DATA SET####
@@ -225,11 +229,8 @@ rm(m, minm, minsm, nn, s, sm)
 
 tissue1 <- "brain_putamen"
 tissue2 <- "brain_cortex"
-dat <- data.frame(expr4T.filtered)
-mydat <-
-  expr4T.filtered[which(expr4T.filtered$tissue == tissue1 |
-                          expr4T.filtered$tissue == tissue2),]
-mydat <- droplevels(mydat)
+
+mydat <- tissue.selection(tissue1, tissue2, data = expr4T.filtered)
 
 #LINEAR REGReSSION MODELS
 
@@ -259,7 +260,7 @@ plot(lm.fit.1)
 # Check if there is evidence of non-linearity for ENSG00000271043.1_MTRNR2L2 fpr two tissue data
 plot(lm.fit.1.two.tissues)
 
-#### Approach for avoiding patterns in linearity plot(NOT SUCCESS) #####
+#### Approach for avoiding patterns in linearity plot(NOT SUCCESS) Remove? It is useless so maybe we can just omit it. ##### 
 reduced <- c(names(lm.fit.1$fitted.values[which(lm.fit.1$fitted.values>500)]))
 a<- expr4T.filtered[reduced,]
 
@@ -271,7 +272,7 @@ plot(lm.fit.reduced)
 
 rm(reduced, a, lm.fit.reduced)
 
-# Checking predictions
+#### Checking predictions ####
 
 PredictivePerformanceLm(
   y = "ENSG00000271043.1_MTRNR2L2",
@@ -420,7 +421,6 @@ log.expr4T[!is.finite(log.expr4T)] <- 0
 log.mydat <- as.data.frame(log.mydat)
 log.expr4T <- as.data.frame(log.expr4T)
 
-
 #### Perform a linear model on the log-transformed data. ####
 lm.fit.1.log <-
   lm(ENSG00000271043.1_MTRNR2L2 ~ .,
@@ -471,7 +471,6 @@ PredictivePerformanceLm(
 )
 #We can see that the R squared for two tissue data is worst.
 
-
 #### Gene ENSG00000229344.1_RP5.857K21.7 model ####
 lm.fit.2.log <-
   lm(ENSG00000229344.1_RP5.857K21.7 ~ .,
@@ -485,9 +484,7 @@ lm.fit.2.two.tissues.log <-
 plot(lm.fit.2.log)
 plot(lm.fit.2.two.tissues.log)
 
-
 test.pred <- predict(lm.fit.2.log, newdata = log.expr4T[-train.expr4T.data, ])
-
 
 plot(log.expr4T$ENSG00000229344.1_RP5.857K21.7[-train.expr4T.data], test.pred,
      xlab = "Predicted values for ENSG00000229344.1_RP5.857K21.7", 
@@ -713,7 +710,6 @@ hc.complete.pca <- hclust(dist(pr.out$x[,1:2]), method = "complete")
 hc.average.pca <- hclust(dist(pr.out$x[,1:2]), method = "average")
 hc.single.pca <- hclust(dist(pr.out$x[,1:2]), method = "single")
 
-
 # Perform hierarchical clustering, using three methods on the clustering data.
 hc.complete <- hclust(dist(clustering.data), method = "complete")
 hc.average <- hclust(dist(clustering.data), method = "average")
@@ -733,7 +729,6 @@ cutree(hc.single , ncenters)
 # how you interpret the results: K-means clustering will arbitrarily
 # number the clusters, so you cannot simply check whether the true
 # class labels and clustering labels are the same.
-
 
 # K-means generate class labels, each of these class labels corrosponds to a entry in the tissues.
 # So unique(expr4T.filtered$tissue)[1] corrosponds to k-means class label 1.
