@@ -788,7 +788,51 @@ rf.worst.genes <- randomForest(
 yhat.worst <- predict (rf.worst.genes, newdata = mydat[-train.mydat,])
 1-mean(yhat.worst == mydat[-train.mydat,]$tissue)
 
+###############
+# Question 3  #
 
+# Create a tree for the set of best genes.
+tree.best.genes <- tree(tissue ~ ENSG00000225972.1_MTND1P23 + ENSG00000225630.1_MTND2P28 + ENSG00000237973.1_hsa.mir.6723 + ENSG00000229344.1_RP5.857K21.7 + ENSG00000131584.14_ACAP3,
+                        data = mydat,
+                        subset = train.mydat)
+plot(tree.best.genes)
+text(tree.best.genes, pretty = 0)
+
+# Prune the best genes tree.
+prune.tree.best.genes <- tree.pruner(tree.best.genes)
+plot(prune.tree.best)
+text(prune.tree.best, pretty = 0)
+
+# Error rate of pruned tree.
+error.rate.prediction.trees(tree.data = prune.tree.best.genes, dataset = mydat, test.set = -train.mydat)
+# Error rate of unpruned tree
+error.rate.prediction.trees(tree.data = tree.best.genes, dataset = mydat, test.set = -train.mydat)
+
+#The same error rate.
+
+rf.best.genes <- randomForest(
+  tissue ~ ENSG00000225972.1_MTND1P23 + ENSG00000225630.1_MTND2P28 + ENSG00000237973.1_hsa.mir.6723 + ENSG00000229344.1_RP5.857K21.7 + ENSG00000131584.14_ACAP3,
+  data = mydat,
+  subset = train.mydat,
+  mtry = (5 - 1)/2,
+  ntree = 500,
+  importance = TRUE
+)
+rf.best.genes  # Higher OOB estimate of  error rate
+rf.tissues
+
+lm.fit.two.tissues.best.genes <-
+  lm(ENSG00000271043.1_MTRNR2L2 ~ ENSG00000221890.2_NPTXR + ENSG00000183379.4_SYNDIG1L + ENSG00000130558.14_OLFM1 + ENSG00000104888.5_SLC17A7 + ENSG00000124785.4_NRN1,
+     data = mydat,
+     subset = train.mydat)
+PredictivePerformanceLm(
+  y = "ENSG00000271043.1_MTRNR2L2",
+  data.set = mydat,
+  training.data = train.mydat,
+  lm.training = lm.fit.two.tissues.best.genes
+)
+# R-square =  -0.03732637
+# Fraction of variability explained by the model =  0.0712916
 
 ####################################################################################################################################
 ####################################################################################################################################
