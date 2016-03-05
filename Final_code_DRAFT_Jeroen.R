@@ -37,6 +37,15 @@ library(randomForest)
 # Library is used for the creation of trees.
 library(tree)
 
+# Used for performing a svm.
+library(e1071)
+
+# Used for the glmnet for lasso and ridge linear regression
+library(gbm)
+
+# Lasso adn the ridge methods
+library(glmnet)
+
 
 ####################
 #### Functions #####
@@ -300,7 +309,7 @@ mydat <- tissue.selection(tissue1, tissue2, data = expr4T.filtered)
 
 #LINEAR REGReSSION MODELS
 
-set.seed(1)
+set.seed(42)
 ####Training set selection####
 train.expr4T.data <-
   sample(1:nrow(expr4T.filtered), round(nrow(expr4T.filtered) * 0.35))
@@ -639,8 +648,146 @@ error.rate.prediction.trees(tree.data = prune.tree.regression, dataset = mydat, 
 
 # Method 2
 
+p <- ncol(mydat) - 1
+p.2 <- p / 2
+p.3 <- sqrt(p)
+
+
 p.error.classification <- DetermineEffectPsRandomForest(dataset = mydat, train.set = train.mydat, test.set = -train.mydat, column.index = 152)
 p.error.regression <- DetermineEffectPsRandomForest(dataset = mydat, train.set = train.mydat, test.set = -train.mydat, column.index = grep("ENSG00000271043.1_MTRNR2L2", colnames(mydat)))
+
+
+mean(p.error.classification$p1.mse)
+mean(p.error.classification$p2.mse) # Lowest MSE so it is going to be used for classification.
+mean(p.error.classification$p3.mse)
+
+# Perform a randomForest on the tissues to see which predictor is important for the tissues.
+rf.tissues <- randomForest(
+  tissue ~ .,
+  data = mydat,
+  subset = train.mydat,
+  mtry = p.2,
+  ntree = 500,
+  importance = TRUE
+)
+
+set.seed(42)
+tune.out.linear <- tune(
+  svm,
+  tissue ~ .,
+  data = mydat ,
+  kernel = "linear",
+  ranges = list(cost = seq(0.1, 1.0, .1))
+)
+tune.out.linear
+
+#################################
+# SVM with two types of kernel  #
+
+# Perform a SVM using a linear kernel on the classification problem.
+svm.linear <-
+  svm(tissue ~ .,
+      data = mydat,
+      subset = train.mydat,
+      kernel = "linear",
+      cost = 0.1)
+summary(svm.linear)
+
+# Performing from c(1, 10, 20, 30, 40, 50, 60), lead to 40.
+# c(40, 41, 42, 43, 44, 46, 48) leads to 43
+# seq(42.7, 44, 0.1) leads to 43.2
+tune.out.poly <- tune(
+  svm,
+  tissue ~ .,
+  data = mydat ,
+  kernel = "polynomial",
+  ranges = list(cost = seq(1, 50, 1))
+)
+tune.out.poly
+
+# Perform a SVM using a polynomial kernel on the classification problem.
+svm.poly <-   svm(tissue ~ .,
+                  data = mydat,
+                  subset = train.mydat,
+                  kernel = "polynomial",
+                  cost = 43.2)
+summary(svm.poly)
+
+# Error rate SVM linear classification problem.
+error.rate.prediction.trees(svm.linear, dataset = mydat, test.set = -train.mydat)
+
+# Error rate SVM polynomial classification problem.
+error.rate.prediction.trees(svm.poly, dataset = mydat, test.set = -train.mydat)
+
+svm.linear.r <-
+  svm(
+    ENSG00000104888.5_SLC17A7 ~ . - tissue,
+    data = mydat,
+    subset = train.mydat,
+    kernel = "linear",
+    cost = 1
+  )
+
+# @TODO Error rate of 1, check it again.
+error.rate.prediction.trees(svm.linear.r, dataset = mydat, test.set = -train.mydat)
+
+# Perform a SVM using a polynomial kernel on the regression problem.
+svm.poly.r <-   svm(
+  ENSG00000104888.5_SLC17A7 ~ . - tissue,
+  data = mydat,    
+  subset = train.mydat,
+  kernel = "polynomial",
+  cost = 43.2
+)
+
+# @TODO Error rate of 1, check it again.
+error.rate.prediction.trees(svm.poly.r, dataset = mydat, test.set = -train.mydat)
+
+###########################################
+# RandomForest find informative features  #
+
+importance(rf.tissues)
+varImpPlot(rf.tissues)
+# The results show that for all the trees considered in the rf.tissues, the
+# genes ENSG00000221890.2_NPTXR & ENSG00000183379.4_SYNDIG1L are by the two most
+# important variables. You base this upon their positions in the top of the
+# MeanDecreaseAccuracy and MeanDecreaseGini. So using them to discriminate the
+# two different tissues could prove to be usefull.
+
+# Sort on the MeanDecreaseAccuracy to get the best and worst genes.
+best.genes <-
+  names(sort(importance(rf.tissues)[,3], decreasing = T))[1:5]
+worst.genes <-
+  names(sort(importance(rf.tissues)[,3], decreasing = F))[1:5]
+
+# Calcualte the p, now based on the length.
+p <- length(best.genes) - 1
+p.2 <- p / 2
+
+# Generate a random forest of the best genes for the classification problem.
+rf.best.genes <- randomForest(
+  tissue ~ ENSG00000183036.6_PCP4 + ENSG00000183379.4_SYNDIG1L + ENSG00000176533.8_GNG7 + ENSG00000185615.11_PDIA2 + ENSG00000124785.4_NRN1,
+  data = mydat,
+  subset = train.mydat,
+  mtry = p.2,
+  ntree = 500,
+  importance = TRUE
+)
+yhat.rf <- predict (rf.best.genes, newdata = mydat[-train.mydat,])
+1-mean(yhat.rf == mydat[-train.mydat,]$tissue)
+
+# Generate a random forest of the worst genes for the classification problem.
+rf.worst.genes <- randomForest(
+  tissue ~ ENSG00000225972.1_MTND1P23 + ENSG00000225630.1_MTND2P28 + ENSG00000237973.1_hsa.mir.6723 + ENSG00000229344.1_RP5.857K21.7 + ENSG00000131584.14_ACAP3,
+  data = mydat,
+  subset = train.mydat,
+  mtry = p.2,
+  ntree = 500,
+  importance = TRUE
+)
+yhat.worst <- predict (rf.worst.genes, newdata = mydat[-train.mydat,])
+1-mean(yhat.worst == mydat[-train.mydat,]$tissue)
+
 
 
 ####################################################################################################################################
@@ -914,7 +1061,6 @@ for (i in 1:ncenters) {
   }
 }
 
-## @ TODO: REMOVE THIS AFTER WEEK 2 HAS BEEN ADDED!!
 p <- ncol(expr4T.filtered) - 1
 p.2 <- p / 2
 p.3 <- sqrt(p)
