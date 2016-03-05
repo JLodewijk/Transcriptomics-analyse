@@ -671,6 +671,9 @@ rf.tissues <- randomForest(
   ntree = 500,
   importance = TRUE
 )
+error.rate.prediction.trees(tree.data = rf.tissues, dataset = mydat, test.set = -train.mydat)
+
+rf.tissues
 
 set.seed(42)
 tune.out.linear <- tune(
@@ -787,6 +790,7 @@ rf.worst.genes <- randomForest(
 )
 error.rate.prediction.trees(tree.data = rf.worst.genes, dataset = mydat, test.set = -train.mydat)
 
+
 ###############
 # Question 3  #
 
@@ -807,6 +811,8 @@ error.rate.prediction.trees(tree.data = prune.tree.best.genes, dataset = mydat, 
 # Error rate of unpruned tree
 error.rate.prediction.trees(tree.data = tree.best.genes, dataset = mydat, test.set = -train.mydat)
 
+# Error rate tree.tissue: 0.03649635
+
 #The same error rate.
 
 rf.best.genes <- randomForest(
@@ -820,6 +826,7 @@ rf.best.genes <- randomForest(
 rf.best.genes  # Higher OOB estimate of  error rate
 rf.tissues
 
+
 lm.fit.two.tissues.best.genes <-
   lm(ENSG00000271043.1_MTRNR2L2 ~ ENSG00000221890.2_NPTXR + ENSG00000183379.4_SYNDIG1L + ENSG00000130558.14_OLFM1 + ENSG00000104888.5_SLC17A7 + ENSG00000124785.4_NRN1,
      data = mydat,
@@ -832,6 +839,53 @@ PredictivePerformanceLm(
 )
 # R-square =  -0.03732637
 # Fraction of variability explained by the model =  0.0712916
+
+
+###############
+# Question 4  #
+
+# Create a tree for everything besides the best features
+tree.all.besides.best <- tree(  tissue ~ . -ENSG00000221890.2_NPTXR + -ENSG00000183379.4_SYNDIG1L + -ENSG00000130558.14_OLFM1 + -ENSG00000104888.5_SLC17A7 + -ENSG00000124785.4_NRN1,
+                                data = mydat,
+                                subset = train.mydat)
+
+# Prune the tree.
+prune.all.besides.best <- tree.pruner(tree.all.besides.best)
+
+# Error rate of pruned tree.
+error.rate.prediction.trees(tree.data = prune.all.besides.best, dataset = mydat, test.set = -train.mydat)
+# Error rate of unpruned tree
+error.rate.prediction.trees(tree.data = tree.all.besides.best, dataset = mydat, test.set = -train.mydat)
+
+
+svm.linear.all.besides.best <-
+  svm(    tissue ~ . -ENSG00000221890.2_NPTXR + -ENSG00000183379.4_SYNDIG1L + -ENSG00000130558.14_OLFM1 + -ENSG00000104888.5_SLC17A7 + -ENSG00000124785.4_NRN1,
+          data = mydat,
+          subset = train.mydat,
+          kernel = "linear",
+          cost = 0.1)
+
+svm.poly.all.besides.best <-   svm(    tissue ~ . -ENSG00000221890.2_NPTXR + -ENSG00000183379.4_SYNDIG1L + -ENSG00000130558.14_OLFM1 + -ENSG00000104888.5_SLC17A7 + -ENSG00000124785.4_NRN1,
+                                       data = mydat,
+                                       subset = train.mydat,
+                                       kernel = "polynomial",
+                                       cost = 43.2)
+
+# Error rate SVM linear classification problem for worst genes.
+error.rate.prediction.trees(svm.linear.all.besides.best, dataset = mydat, test.set = -train.mydat)
+
+# Error rate SVM polynomial classification problem for worst genes.
+error.rate.prediction.trees(svm.poly.all.besides.best, dataset = mydat, test.set = -train.mydat)
+
+rf.all.besides.best<- randomForest(
+  tissue ~ . -ENSG00000221890.2_NPTXR + -ENSG00000183379.4_SYNDIG1L + -ENSG00000130558.14_OLFM1 + -ENSG00000104888.5_SLC17A7 + -ENSG00000124785.4_NRN1,
+  data = mydat,
+  subset = train.mydat,
+  mtry = (5 - 1)/2,
+  ntree = 500,
+  importance = TRUE
+)
+
 
 ####################################################################################################################################
 ####################################################################################################################################
