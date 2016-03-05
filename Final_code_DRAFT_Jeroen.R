@@ -562,18 +562,21 @@ tissues.pairs <- c("brain_hippocampus" , "brain_nucleusaccumbens",
 set.seed(1)
 #### FIRST PAIR: "brain_hippocampus" , "brain_nucleusaccumbens" ####
 #pairs of tissues
-tissue1 <- "brain_hippocampus"
-tissue2 <- "brain_nucleusaccumbens"
+tissue1 <- "brain_cerebellarhemisphere"
+tissue2 <- "brain_cerebellum"
 
 #specific data set
+set.seed(1)
 mydat <- tissue.selection(tissue1, tissue2, expr4T.filtered)
 
 train <- sample(1:nrow(mydat), round(nrow(mydat) * 0.35))
 test.set <- mydat[-train,]
 
+
 #GLM model####
 tissues <- mydat$tissue
-new.data <- data.frame(mydat[,1:10], tissues)
+#best -> best gene selection
+new.data <- data.frame(mydat, tissues)
 glm.fit <- glm(tissues~.,
                 data = new.data,
                 family = binomial,
@@ -642,6 +645,19 @@ rf.worst.genes <- randomForest(
   importance = TRUE
 )
 error.rate.prediction.trees(tree.data = rf.worst.genes, dataset = mydat, test.set = -train.mydat)
+
+##Adding a non-linear term to lda (best performance) ####
+log.term <- new.data$ENSG00000131771.9_PPP1R1B
+log.added <- data.frame(mydat, log.term)
+lda.fit <- lda(tissues~.,
+               data = log.added,
+               subset = train)
+
+lda.pred <- predict(lda.fit, test.set)
+lda.class <- lda.pred$class
+table(lda.class, test.set$tissue)
+1-mean(lda.class==test.set$tissue)
+
 
 ###############
 # Question 3  #
