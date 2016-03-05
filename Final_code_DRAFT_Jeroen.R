@@ -122,7 +122,7 @@ error.rate.prediction.trees <- function(tree.data, dataset, test.set, type.predi
   prediction.tree <- predict(tree.data, newdata = dataset[test.set,], type = type.prediction)
   
   # Get the y data out of the dataset, create a list. Otherwise you get errors in the return statement.
-  test.data <- expr4T.filtered[test.set,]$tissue
+  test.data <- dataset[test.set,]$tissue
   
   # Error test of the prediction against the test set.
   return( 1 - mean(prediction.tree == test.data) )
@@ -533,6 +533,43 @@ PredictivePerformanceLm(
 ####  WEEK 2 ####
 
 
+# 1. Apply at least two tree-based methods, and an SVM with two types of kernel
+# (all presented this week) to some of the problems analysed last week. Do so
+# for one regression and one classification problem. Compare the predictive
+# performance of last weeks models to that of the new models using a
+# cross-validation setup. Discuss the observed differences in performance of
+# methods for the various classification/regression problems.
+
+#######################
+# Tree-based methods  #
+
+# Create the tree for the classification problem.
+tree.tissues <- tree(tissue ~ .,
+                     data = mydat,
+                     subset = train.mydat)
+summary (tree.tissues)
+plot(tree.tissues)
+text(tree.tissues, pretty = 0)
+
+# Prune the tree for the classification problem.
+prune.tree.tissues <- tree.pruner(tree.tissues)
+plot(prune.tree.tissues)
+text(prune.tree.tissues, pretty = 0)
+
+# Error rate of pruned tree
+error.rate.prediction.trees(tree.data = prune.tree.tissues, dataset = mydat, test.set = -train.mydat)
+# Error rate of unpruned tree
+error.rate.prediction.trees(tree.data = tree.tissues, dataset = mydat, test.set = -train.mydat)
+
+# Error rates are the same, tree has just 2 branches. So there is not much to prune.
+
+
+
+
+####################################################################################################################################
+####################################################################################################################################
+####################################################################################################################################
+####################################################################################################################################
 
 
 ####  WEEK 3  ####
@@ -846,13 +883,7 @@ tree.expr.clus <-
     subset = train.expr4T.data
   )
 
-# @ TODO: Replace this repetative code as a function.
-# Perform cross-validation and pruning on the tree
-cv.tissue <- cv.tree(tree.expr.clus, FUN = prune.misclass)
-best.set <- min.set.selection(cv.tissue)
-
-prune.expr.clus <- prune.misclass(tree.expr.clus, best = best.set)
-
+prune.expr.clus <- tree.pruner(tree.expr.clus)
 
 
 tree.all.genes <- tree(tissue ~ .,
@@ -860,11 +891,7 @@ tree.all.genes <- tree(tissue ~ .,
                        subset = train.expr4T.data)
 
 
-
-cv.tissue <- cv.tree(tree.all.genes, FUN = prune.misclass)
-best.set <- min.set.selection(cv.tissue)
-
-prune.expr.all.genes <- prune.misclass(tree.all.genes, best = best.set)
+prune.expr.all.genes <- tree.pruner(tree.all.genes)
 
 # Error rate unpruned tree of the clustering data.
 error.rate.prediction.trees(tree.data = tree.expr.clus, dataset = expr4T.filtered, test.set = -train.expr4T.data)
