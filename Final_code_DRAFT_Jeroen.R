@@ -198,6 +198,60 @@ tissue.selection <- function(tissue1, tissue2, data = data.frame(expr4T.filtered
   return (mydata)
 }
 
+#' DetermineEffectPsRandomForest
+#' Using different P's on the dataset, to see which one has the smallest mse.
+#' @param dataset: dataset used for performing a randomForest upon.
+#' @param train.set: list of indexes indicating the entries of the trainings set.
+#' @param test.set: list of indexes indicating the entries of the test set.
+#'
+#' @return data.frame containing each of the P's MSE as a column.
+DetermineEffectPsRandomForest <- function(dataset, train.set, test.set){
+  
+  # Use different P's to see the effect on randomForest.
+  p <- ncol(dataset) - 1
+  p.2 <- p / 2
+  p.3 <- sqrt(p)
+  
+  # Create different train and test sets for the data for the classification problem
+  train.X <- dataset[train.set,-152]
+  test.X <- dataset[test.set,-152]
+  train.Y <- dataset[train.set, 152]
+  test.Y <- dataset[test.set, 152]
+  
+  # Run the randomforest, each of them has a different P. But all of them have the same ntree and datasets.
+  rf.tissue.p <- randomForest(
+    train.X,
+    train.Y,
+    xtest = test.X,
+    ytest = test.Y,
+    mtry = p,
+    ntree = 500
+  )
+  
+  rf.tissue.p.2 <- randomForest(
+    train.X,
+    train.Y,
+    xtest = test.X,
+    ytest = test.Y,
+    mtry = p.2,
+    ntree = 500
+  )
+  
+  rf.tissue.p.3 <- randomForest(
+    train.X,
+    train.Y,
+    xtest = test.X,
+    ytest = test.Y,
+    mtry = p.3,
+    ntree = 500
+  )
+  
+  # Return a data.frame containg the mse of each of the randomForests
+  return(data.frame(p1.mse = rf.tissue.p$test$mse, p2.mse = rf.tissue.p.2$test$mse, p3.mse = rf.tissue.p.3$test$mse))
+}
+
+
+
 #############
 # Main code #
 #############
