@@ -37,15 +37,6 @@ library(randomForest)
 # Library is used for the creation of trees.
 library(tree)
 
-# Used for performing a svm.
-library(e1071)
-
-# Used for the glmnet for lasso and ridge linear regression
-library(gbm)
-
-# Lasso adn the ridge methods
-library(glmnet)
-
 
 ####################
 #### Functions #####
@@ -131,7 +122,7 @@ error.rate.prediction.trees <- function(tree.data, dataset, test.set, type.predi
   prediction.tree <- predict(tree.data, newdata = dataset[test.set,], type = type.prediction)
   
   # Get the y data out of the dataset, create a list. Otherwise you get errors in the return statement.
-  test.data <- dataset[test.set,]$tissue
+  test.data <- expr4T.filtered[test.set,]$tissue
   
   # Error test of the prediction against the test set.
   return( 1 - mean(prediction.tree == test.data) )
@@ -142,36 +133,24 @@ error.rate.prediction.trees <- function(tree.data, dataset, test.set, type.predi
 #' @param tree.data: tree data that is going to be pruned.
 #' @param seed: randomseed, will not be used if randomness is TRUE.
 #' @param randomness: if a randomseed will be used or randomness will be allowed.
-#' @param regression.tree: boolean that indicates if the tree.data is a boolean, default is on FALSE.
+#'
 #' @return pruned tree
-tree.pruner <- function(tree.data, seed = 1, randomness = FALSE, regression.tree = FALSE){
+tree.pruner <- function(tree.data, seed = 1, randomness = FALSE){
   # Set a seed if randomness is not wanted.
   if(randomness == FALSE){
     set.seed(seed)
   }
   
   # Perform cross-validation on the tree.
-  if(regression.tree == FALSE){
-    # CV for the classification problem.
-    cv.tissue <- cv.tree(tree.data, FUN = prune.misclass)
-  }
-  else{
-    # CV for the regression problem.
-    cv.tissue <- cv.tree(tree.data, FUN = prune.tree)
-  }
+  cv.tissue <- cv.tree(tree.data, FUN = prune.misclass)
+  
   # Get the best.set using the min.set.selection.
   best.set <- min.set.selection(cv.tissue)
   
   # Prune the tree and return it.
-  if(regression.tree == FALSE){
-    # Prunning method for the classification problem.
-    return(prune.misclass(tree.data, best = best.set))
-  }
-  else{
-    # Prunning method for the regression problem.
-    return(prune.tree(tree.regression, best = best.set))
-  }
+  return(prune.misclass(tree.data, best = best.set))
 }
+
 #' Cols
 #' Creates a range of colors that can be used for plotting.
 #' @param vec: is a vector that will be given colors ID's.
@@ -206,60 +185,51 @@ tissue.selection <- function(tissue1, tissue2, data = data.frame(expr4T.filtered
   print(table(mydata$tissue))
   return (mydata)
 }
-
-#' DetermineEffectPsRandomForest
-#' Using different P's on the dataset, to see which one has the smallest mse.
-#' @param dataset: dataset used for performing a randomForest upon.
-#' @param train.set: list of indexes indicating the entries of the trainings set.
-#' @param test.set: list of indexes indicating the entries of the test set.
-#' @param column.index: column that is being used for the training and testing of data.
-#' @return data.frame containing each of the P's MSE as a column.
-DetermineEffectPsRandomForest <- function(dataset, train.set, test.set, column.index){
-  
-  # Use different P's to see the effect on randomForest.
-  p <- ncol(dataset) - 1
-  p.2 <- p / 2
-  p.3 <- sqrt(p)
-  
-  # Create different train and test sets for the data for the classification problem
-  train.X <- dataset[train.set,-column.index]
-  test.X <- dataset[test.set,-column.index]
-  train.Y <- dataset[train.set, column.index]
-  test.Y <- dataset[test.set, column.index]
-  
-  # Run the randomforest, each of them has a different P. But all of them have the same ntree and datasets.
-  rf.tissue.p <- randomForest(
-    train.X,
-    train.Y,
-    xtest = test.X,
-    ytest = test.Y,
-    mtry = p,
-    ntree = 500
-  )
-  
-  rf.tissue.p.2 <- randomForest(
-    train.X,
-    train.Y,
-    xtest = test.X,
-    ytest = test.Y,
-    mtry = p.2,
-    ntree = 500
-  )
-  
-  rf.tissue.p.3 <- randomForest(
-    train.X,
-    train.Y,
-    xtest = test.X,
-    ytest = test.Y,
-    mtry = p.3,
-    ntree = 500
-  )
-  
-  # Return a data.frame containg the mse of each of the randomForests
-  return(data.frame(p1.mse = rf.tissue.p$test$mse, p2.mse = rf.tissue.p.2$test$mse, p3.mse = rf.tissue.p.3$test$mse))
+#for the log of the data
+is.finite.data.frame <- function(obj){
+  sapply(obj,FUN = function(x) all(is.finite(x)))
 }
 
-
+#' steps for a complete glm prediction
+#' @param tissues.pair: a vector of two tissues 
+#' @param data.set: used data
+#' @param fit.type: glm fit as default, if change to lda problems in the alst part (change?)
+#' 
+#' @return result: test error rate
+glm.model <- function(fit.type = glm,data.set, tissues.pair){
+  
+  set.seed(1)
+  #pairs of tissues
+  tissue1 <- tissues.pair[1]
+  tissue2 <- tissues.pair[2]
+  
+  #specific data set
+  mydat <- tissue.selection(tissue1, tissue2, data.set)
+  
+  train <- sample(1:nrow(mydat), round(nrow(mydat) * 0.35))
+  test.set <- mydat[-train,]
+  
+  #model
+  tissues <- mydat$tissue
+  new.data <- data.frame(mydat[,1:10], tissues)
+  fit <- fit.type(tissues~.,
+                  data = new.data,
+                  family = binomial,
+                  subset = train
+  )
+  
+  #predictions
+  
+  probs <-  predict(fit, test.set, type = "response")
+  pred <- rep(tissue1, nrow(test.set))
+  pred[probs>0.5] = tissue2
+  cat(table(pred, test.set$tissue))
+  
+  
+  return (1-mean(pred == test.set$tissue) )
+  
+  
+}
 
 #############
 # Main code #
@@ -309,7 +279,7 @@ mydat <- tissue.selection(tissue1, tissue2, data = expr4T.filtered)
 
 #LINEAR REGReSSION MODELS
 
-set.seed(42)
+set.seed(1)
 ####Training set selection####
 train.expr4T.data <-
   sample(1:nrow(expr4T.filtered), round(nrow(expr4T.filtered) * 0.35))
@@ -443,7 +413,7 @@ PredictivePerformanceLm(
 
 sqrt(vif(lm.fit.3)) > 2
 
-#### SUMMARIES OF ALL LINEAR MODELS ####
+#### SUMMARIES OF ALL LINEAR MODELS (Examples of coeff below in case we want to use it)####
 summary(lm.fit.1) #14 SIGNIFICANT COEFF
 #ENSG00000225972.1_MTND1P23                4.203e-02  1.210e-02   3.474 0.000595
 #ENSG00000064787.8_BCAS1                   1.277e+00  8.954e-01   1.426 0.154862
@@ -467,19 +437,11 @@ summary(lm.fit.3) # 11
 summary(lm.fit.3.two.tissues) # 0
 
 
-
-# b) How many variables are significant? How do you decide on significance?
-# Perform summary on all of them, but if the results show that themodel is highly significant, while few individual predictors are significant. Then collinearity
-
-# Perform a log on everything, besides the tissues. 
-
-###CONVERTION OF THE DATA ####
+###CONVERTION OF THE DATA (Log) ####
 log.mydat <- log(mydat[-ncol(mydat)])
 log.expr4T <- log(expr4T.filtered[-ncol(expr4T.filtered)])
 
-is.finite.data.frame <- function(obj){
-  sapply(obj,FUN = function(x) all(is.finite(x)))
-}
+
 
 # Check if there are any infs in the log-transformed datasets.
 is.finite.data.frame(log.mydat)
@@ -513,7 +475,7 @@ plot(log.expr4T$ENSG00000271043.1_MTRNR2L2[-train.expr4T.data], test.pred,
      ylab = "Observed values for ENSG00000271043.1_MTRNR2L2")
 abline(0,1, col = "red")
 
-log.mydat <- log.mydat[,1:100] #again we select a small data set, otherwise it doesn't work
+log.mydat <- log.mydat[,1:70] #again we select a small data set, otherwise it doesn't work
 #Two tissue model
 lm.fit.1.two.tissues.log <-
   lm(ENSG00000271043.1_MTRNR2L2 ~ .,
@@ -590,181 +552,114 @@ PredictivePerformanceLm(
 )
 
 
+#### COMPARATION OF PERFORMANCES BT TISSUES ####
 
+tissues.pairs <- c("brain_hippocampus" , "brain_nucleusaccumbens",
+                    "brain_spinalcord" , "brain_substantianigra",
+                    "brain_cerebellarhemisphere" , "brain_cerebellum",
+                    "brain_cerebellum" , "brain_amygdala",
+                    "brain_cortex" , "brain_putamen")
+set.seed(1)
+#### FIRST PAIR: "brain_hippocampus" , "brain_nucleusaccumbens" ####
+#pairs of tissues
+tissue1 <- "brain_hippocampus"
+tissue2 <- "brain_nucleusaccumbens"
 
+#specific data set
+mydat <- tissue.selection(tissue1, tissue2, data.set)
 
+train <- sample(1:nrow(mydat), round(nrow(mydat) * 0.35))
+test.set <- mydat[-train,]
 
-
-
-
-
-
-####################################################################################################################################
-####################################################################################################################################
-####################################################################################################################################
-####################################################################################################################################
-
-
-
-####  WEEK 2 ####
-
-
-# 1. Apply at least two tree-based methods, and an SVM with two types of kernel
-# (all presented this week) to some of the problems analysed last week. Do so
-# for one regression and one classification problem. Compare the predictive
-# performance of last weeks models to that of the new models using a
-# cross-validation setup. Discuss the observed differences in performance of
-# methods for the various classification/regression problems.
-
-#######################
-# Tree-based methods  #
-
-# Create the tree for the classification problem.
-tree.tissues <- tree(tissue ~ .,
-                     data = mydat,
-                     subset = train.mydat)
-summary (tree.tissues)
-plot(tree.tissues)
-text(tree.tissues, pretty = 0)
-
-# Prune the tree for the classification problem.
-prune.tree.tissues <- tree.pruner(tree.tissues)
-plot(prune.tree.tissues)
-text(prune.tree.tissues, pretty = 0)
-
-# Error rate of pruned tree
-error.rate.prediction.trees(tree.data = prune.tree.tissues, dataset = mydat, test.set = -train.mydat)
-# Error rate of unpruned tree
-error.rate.prediction.trees(tree.data = tree.tissues, dataset = mydat, test.set = -train.mydat)
-
-# Error rates are the same, tree has just 2 branches. So there is not much to prune.
-
-tree.regression <- tree(ENSG00000271043.1_MTRNR2L2 ~ . - tissue,
-                        data = mydat,
-                        subset = train.mydat)
-prune.tree.regression <- tree.pruner(tree.regression, regression.tree = TRUE)
-
-error.rate.prediction.trees(tree.data = tree.regression, dataset = mydat, test.set = -train.mydat, type.prediction = "vector")
-error.rate.prediction.trees(tree.data = prune.tree.regression, dataset = mydat, test.set = -train.mydat, type.prediction = "vector")
-
-# Method 2
-
-p <- ncol(mydat) - 1
-p.2 <- p / 2
-p.3 <- sqrt(p)
-
-
-p.error.classification <- DetermineEffectPsRandomForest(dataset = mydat, train.set = train.mydat, test.set = -train.mydat, column.index = 152)
-p.error.regression <- DetermineEffectPsRandomForest(dataset = mydat, train.set = train.mydat, test.set = -train.mydat, column.index = grep("ENSG00000271043.1_MTRNR2L2", colnames(mydat)))
-
-
-mean(p.error.classification$p1.mse)
-mean(p.error.classification$p2.mse) # Lowest MSE so it is going to be used for classification.
-mean(p.error.classification$p3.mse)
-
-# Perform a randomForest on the tissues to see which predictor is important for the tissues.
-rf.tissues <- randomForest(
-  tissue ~ .,
-  data = mydat,
-  subset = train.mydat,
-  mtry = p.2,
-  ntree = 500,
-  importance = TRUE
+#GLM model####
+tissues <- mydat$tissue
+new.data <- data.frame(mydat[,1:10], tissues)
+fit <- glm(tissues~.,
+                data = new.data,
+                family = binomial,
+                subset = train
 )
 
-set.seed(42)
-tune.out.linear <- tune(
-  svm,
-  tissue ~ .,
-  data = mydat ,
-  kernel = "linear",
-  ranges = list(cost = seq(0.1, 1.0, .1))
-)
-tune.out.linear
+#predictions
 
-#################################
-# SVM with two types of kernel  #
+probs <-  predict(fit, test.set, type = "response")
+pred <- rep(tissue1, nrow(test.set))
+pred[probs>0.5] = tissue2
+table(pred, test.set$tissue)
 
-# Perform a SVM using a linear kernel on the classification problem.
-svm.linear <-
-  svm(tissue ~ .,
-      data = mydat,
-      subset = train.mydat,
-      kernel = "linear",
-      cost = 0.1)
-summary(svm.linear)
 
-# Performing from c(1, 10, 20, 30, 40, 50, 60), lead to 40.
-# c(40, 41, 42, 43, 44, 46, 48) leads to 43
-# seq(42.7, 44, 0.1) leads to 43.2
-tune.out.poly <- tune(
-  svm,
-  tissue ~ .,
-  data = mydat ,
-  kernel = "polynomial",
-  ranges = list(cost = seq(1, 50, 1))
-)
-tune.out.poly
+1-mean(pred == test.set$tissue)
+  
+   model1 <- fit.model(data.set =  expr4T.filtered,
+            tissues.pair = c("brain_hippocampus" , "brain_nucleusaccumbens"), 
+            fit.type = glm)
+   
+   model2 <- fit.model(data.set =  expr4T.filtered,
+                       tissues.pair = c("brain_spinalcord" , "brain_substantianigra"), 
+                       fit.type = glm)
+   
+   model3 <- fit.model(data.set =  expr4T.filtered,
+                       tissues.pair = c("brain_cerebellarhemisphere" , "brain_cerebellum"), 
+                       fit.type = glm)
+   
+   model4 <- fit.model(data.set =  expr4T.filtered,
+                       tissues.pair = c("brain_cerebellum" , "brain_amygdala"), 
+                       fit.type = glm)
+   
+   model5 <- fit.model(data.set =  expr4T.filtered,
+                       tissues.pair = c("brain_cortex" , "brain_putamen"), 
+                       fit.type = glm)
+   
 
-# Perform a SVM using a polynomial kernel on the classification problem.
-svm.poly <-   svm(tissue ~ .,
-                  data = mydat,
-                  subset = train.mydat,
-                  kernel = "polynomial",
-                  cost = 43.2)
-summary(svm.poly)
+ 
 
-# Error rate SVM linear classification problem.
-error.rate.prediction.trees(svm.linear, dataset = mydat, test.set = -train.mydat)
 
-# Error rate SVM polynomial classification problem.
-error.rate.prediction.trees(svm.poly, dataset = mydat, test.set = -train.mydat)
+# GLM
 
-svm.linear.r <-
-  svm(
-    ENSG00000104888.5_SLC17A7 ~ . - tissue,
-    data = mydat,
-    subset = train.mydat,
-    kernel = "linear",
-    cost = 1
-  )
-
-# @TODO Error rate of 1, check it again.
-error.rate.prediction.trees(svm.linear.r, dataset = mydat, test.set = -train.mydat)
-
-# Perform a SVM using a polynomial kernel on the regression problem.
-svm.poly.r <-   svm(
-  ENSG00000104888.5_SLC17A7 ~ . - tissue,
-  data = mydat,    
-  subset = train.mydat,
-  kernel = "polynomial",
-  cost = 43.2
+tissues <- mydat$tissue
+new.data <- data.frame(mydat[,1:10], tissues)
+glm.fit <- glm(tissues~.,
+               data = new.data,
+               family = binomial,
+               subset = train
 )
 
-# @TODO Error rate of 1, check it again.
-error.rate.prediction.trees(svm.poly.r, dataset = mydat, test.set = -train.mydat)
+a<-summary(glm.fit)
 
-###########################################
-# RandomForest find informative features  #
+#LDA model####
+lda.fit <- lda(tissues~.,
+               data = new.data,
+               subset = train)
 
-importance(rf.tissues)
-varImpPlot(rf.tissues)
-# The results show that for all the trees considered in the rf.tissues, the
-# genes ENSG00000221890.2_NPTXR & ENSG00000183379.4_SYNDIG1L are by the two most
-# important variables. You base this upon their positions in the top of the
-# MeanDecreaseAccuracy and MeanDecreaseGini. So using them to discriminate the
-# two different tissues could prove to be usefull.
+lda.pred <- predict(lda.fit, test.set)
+lda.class <- lda.pred$class
+table(lda.class, test.set$tissue)
+1-mean(lda.class==test.set$tissue)
+#QDA model ####
+qda.fit <- qda(tissues~.,
+               data = new.data,
+               subset = train)
+summary(qda.fit)
+qda.class <- predict(qda.fit, test.set)$class
+table(qda.class, test.set$tissue)
+1-mean(qda.class== test.set$tissue)
+#KNN model ####
 
-# Sort on the MeanDecreaseAccuracy to get the best and worst genes.
-best.genes <-
-  names(sort(importance(rf.tissues)[,3], decreasing = T))[1:5]
-worst.genes <-
-  names(sort(importance(rf.tissues)[,3], decreasing = F))[1:5]
+knn.pred <- knn(mydat[train,][,1:10], test.set[,1:10], mydat$tissue[train], k=1)
+table(knn.pred, test.set$tissue)
+mean(knn.pred==test.set$tissue)
 
-# Calcualte the p, now based on the length.
-p <- length(best.genes) - 1
-p.2 <- p / 2
 
+
+
+
+
+
+
+
+
+
+<<<<<<< Updated upstream
 # Generate a random forest of the best genes for the classification problem.
 rf.best.genes <- randomForest(
   tissue ~ ENSG00000183036.6_PCP4 + ENSG00000183379.4_SYNDIG1L + ENSG00000176533.8_GNG7 + ENSG00000185615.11_PDIA2 + ENSG00000124785.4_NRN1,
@@ -819,24 +714,20 @@ rf.best.genes <- randomForest(
 )
 rf.best.genes  # Higher OOB estimate of  error rate
 rf.tissues
+=======
+>>>>>>> Stashed changes
 
-lm.fit.two.tissues.best.genes <-
-  lm(ENSG00000271043.1_MTRNR2L2 ~ ENSG00000221890.2_NPTXR + ENSG00000183379.4_SYNDIG1L + ENSG00000130558.14_OLFM1 + ENSG00000104888.5_SLC17A7 + ENSG00000124785.4_NRN1,
-     data = mydat,
-     subset = train.mydat)
-PredictivePerformanceLm(
-  y = "ENSG00000271043.1_MTRNR2L2",
-  data.set = mydat,
-  training.data = train.mydat,
-  lm.training = lm.fit.two.tissues.best.genes
-)
-# R-square =  -0.03732637
-# Fraction of variability explained by the model =  0.0712916
 
 ####################################################################################################################################
 ####################################################################################################################################
 ####################################################################################################################################
 ####################################################################################################################################
+
+
+
+####  WEEK 2 ####
+
+
 
 
 ####  WEEK 3  ####
@@ -1104,6 +995,7 @@ for (i in 1:ncenters) {
   }
 }
 
+## @ TODO: REMOVE THIS AFTER WEEK 2 HAS BEEN ADDED!!
 p <- ncol(expr4T.filtered) - 1
 p.2 <- p / 2
 p.3 <- sqrt(p)
@@ -1149,7 +1041,13 @@ tree.expr.clus <-
     subset = train.expr4T.data
   )
 
-prune.expr.clus <- tree.pruner(tree.expr.clus)
+# @ TODO: Replace this repetative code as a function.
+# Perform cross-validation and pruning on the tree
+cv.tissue <- cv.tree(tree.expr.clus, FUN = prune.misclass)
+best.set <- min.set.selection(cv.tissue)
+
+prune.expr.clus <- prune.misclass(tree.expr.clus, best = best.set)
+
 
 
 tree.all.genes <- tree(tissue ~ .,
@@ -1157,7 +1055,11 @@ tree.all.genes <- tree(tissue ~ .,
                        subset = train.expr4T.data)
 
 
-prune.expr.all.genes <- tree.pruner(tree.all.genes)
+
+cv.tissue <- cv.tree(tree.all.genes, FUN = prune.misclass)
+best.set <- min.set.selection(cv.tissue)
+
+prune.expr.all.genes <- prune.misclass(tree.all.genes, best = best.set)
 
 # Error rate unpruned tree of the clustering data.
 error.rate.prediction.trees(tree.data = tree.expr.clus, dataset = expr4T.filtered, test.set = -train.expr4T.data)
