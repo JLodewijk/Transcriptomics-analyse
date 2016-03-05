@@ -572,13 +572,10 @@ mydat <- tissue.selection(tissue1, tissue2, expr4T.filtered)
 train <- sample(1:nrow(mydat), round(nrow(mydat) * 0.35))
 test.set <- mydat[-train,]
 
-
 #GLM model####
-tissues <- mydat$tissue
-#best -> best gene selection
-new.data <- data.frame(mydat, tissues)
-glm.fit <- glm(tissues~.,
-                data = new.data,
+
+glm.fit <- glm(tissue~.,
+                data = mydat,
                 family = binomial,
                 subset = train
 )
@@ -592,8 +589,8 @@ table(pred, test.set$tissue)
 1-mean(pred == test.set$tissue)
   
 #LDA model####
-lda.fit <- lda(tissues~.,
-               data = new.data,
+lda.fit <- lda(tissue~.,
+               data = mydat,
                subset = train)
 
 lda.pred <- predict(lda.fit, test.set)
@@ -601,8 +598,8 @@ lda.class <- lda.pred$class
 table(lda.class, test.set$tissue)
 1-mean(lda.class==test.set$tissue)
 #QDA model ####
-qda.fit <- qda(tissues~.,
-               data = new.data,
+qda.fit <- qda(tissue~.,
+               data = mydat,
                subset = train)
 qda.class <- predict(qda.fit, test.set)$class
 table(qda.class, test.set$tissue)
@@ -647,9 +644,12 @@ rf.worst.genes <- randomForest(
 error.rate.prediction.trees(tree.data = rf.worst.genes, dataset = mydat, test.set = -train.mydat)
 
 ##Adding a non-linear term to lda (best performance) ####
-log.term <- new.data$ENSG00000131771.9_PPP1R1B
+log.term <- log(mydat$ENSG00000131771.9_PPP1R1B)
 log.added <- data.frame(mydat, log.term)
-lda.fit <- lda(tissues~.,
+set.seed(1)
+train <- sample(1:nrow(log.added), round(nrow(log.added) * 0.35))
+test.set <- mydat[-train,]
+lda.fit <- lda(tissue~.,
                data = log.added,
                subset = train)
 
@@ -658,6 +658,26 @@ lda.class <- lda.pred$class
 table(lda.class, test.set$tissue)
 1-mean(lda.class==test.set$tissue)
 
+glm.fit <- glm(tissue~.,
+               data = log.added,
+               family = binomial,
+               subset = train
+)
+
+#predictions
+probs <-  predict(glm.fit, test.set, type = "response")
+pred <- rep(tissue1, nrow(test.set))
+pred[probs>0.5] = tissue2
+table(pred, test.set$tissue)
+
+1-mean(pred == test.set$tissue)
+
+qda.fit <- qda(tissue~.,
+               data = log.added,
+               subset = train)
+qda.class <- predict(qda.fit, test.set)$class
+table(qda.class, test.set$tissue)
+1-mean(qda.class== test.set$tissue)
 
 ###############
 # Question 3  #
