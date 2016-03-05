@@ -133,24 +133,36 @@ error.rate.prediction.trees <- function(tree.data, dataset, test.set, type.predi
 #' @param tree.data: tree data that is going to be pruned.
 #' @param seed: randomseed, will not be used if randomness is TRUE.
 #' @param randomness: if a randomseed will be used or randomness will be allowed.
-#'
+#' @param regression.tree: boolean that indicates if the tree.data is a boolean, default is on FALSE.
 #' @return pruned tree
-tree.pruner <- function(tree.data, seed = 1, randomness = FALSE){
+tree.pruner <- function(tree.data, seed = 1, randomness = FALSE, regression.tree = FALSE){
   # Set a seed if randomness is not wanted.
   if(randomness == FALSE){
     set.seed(seed)
   }
   
   # Perform cross-validation on the tree.
-  cv.tissue <- cv.tree(tree.data, FUN = prune.misclass)
-  
+  if(regression.tree == FALSE){
+    # CV for the classification problem.
+    cv.tissue <- cv.tree(tree.data, FUN = prune.misclass)
+  }
+  else{
+    # CV for the regression problem.
+    cv.tissue <- cv.tree(tree.data, FUN = prune.tree)
+  }
   # Get the best.set using the min.set.selection.
   best.set <- min.set.selection(cv.tissue)
   
   # Prune the tree and return it.
-  return(prune.misclass(tree.data, best = best.set))
+  if(regression.tree == FALSE){
+    # Prunning method for the classification problem.
+    return(prune.misclass(tree.data, best = best.set))
+  }
+  else{
+    # Prunning method for the regression problem.
+    return(prune.tree(tree.regression, best = best.set))
+  }
 }
-
 #' Cols
 #' Creates a range of colors that can be used for plotting.
 #' @param vec: is a vector that will be given colors ID's.
@@ -563,6 +575,13 @@ error.rate.prediction.trees(tree.data = tree.tissues, dataset = mydat, test.set 
 
 # Error rates are the same, tree has just 2 branches. So there is not much to prune.
 
+tree.regression <- tree(ENSG00000271043.1_MTRNR2L2 ~ . - tissue,
+                        data = mydat,
+                        subset = train.mydat)
+prune.tree.regression <- tree.pruner(tree.regression, regression.tree = TRUE)
+
+error.rate.prediction.trees(tree.data = tree.regression, dataset = mydat, test.set = -train.mydat, type.prediction = "vector")
+error.rate.prediction.trees(tree.data = prune.tree.regression, dataset = mydat, test.set = -train.mydat, type.prediction = "vector")
 
 
 
