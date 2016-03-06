@@ -3,7 +3,7 @@
 # Student numbers: & 930203525030       #
 # Project: Bioinformatics               #
 #########################################
-#testing
+
 #############
 # Packages #
 #############
@@ -561,7 +561,6 @@ summary(lm.fit.3) # 11
 
 summary(lm.fit.3.two.tissues) # 0
 
-
 ###CONVERTION OF THE DATA (Log) ####
 log.mydat <- log(mydat[-ncol(mydat)])
 log.expr4T <- log(expr4T.filtered[-ncol(expr4T.filtered)])
@@ -694,7 +693,6 @@ PredictivePerformanceLm(
   lm.training = lm.fit.2.two.tissues.log
 )
 
-
 #### COMPARATION OF PERFORMANCES BT TISSUES ####
 
 tissues.pairs <- c(
@@ -736,7 +734,6 @@ pred[probs > 0.5] = tissue2
 table(pred, test.set$tissue)
 
 1 - mean(pred == test.set$tissue)
-
 #LDA model####
 lda.fit <- lda(tissue ~ .,
                data = mydat,
@@ -814,8 +811,19 @@ table(qda.class, test.set$tissue)
 
 #######################
 # Tree-based methods  #
+tissue1 <- "brain_cerebellum"
+tissue2 <- "brain_amygdala"
 
-# Create the tree for the classification problem.
+#specific data set
+set.seed(1)
+mydat <- tissue.selection(tissue1, tissue2, expr4T.filtered)
+
+
+train.mydat <- sample(1:nrow(mydat), round(nrow(mydat) * 0.35))
+test.set <- mydat[-train, ]
+
+# Method 1 ####
+# Create the tree for the classification problem. ####
 tree.tissues <- tree(tissue ~ .,
                      data = mydat,
                      subset = train.mydat)
@@ -843,9 +851,11 @@ error.rate.prediction.trees(
 
 # Error rates are the same, tree has just 2 branches. So there is not much to prune.
 
-tree.regression <- tree(ENSG00000271043.1_MTRNR2L2 ~ . - tissue,
+# Regression ####
+tree.regression <- tree(ENSG00000271043.1_MTRNR2L2 ~ . - tissue[1:40],
                         data = mydat,
                         subset = train.mydat)
+
 prune.tree.regression <-
   tree.pruner(tree.regression, regression.tree = TRUE)
 
@@ -862,7 +872,7 @@ error.rate.prediction.trees(
   type.prediction = "vector"
 )
 
-# Method 2
+# Method 2 ####
 
 p <- ncol(mydat) - 1
 p.2 <- p / 2
@@ -906,6 +916,12 @@ error.rate.prediction.trees(
 
 rf.tissues
 
+
+
+#################################
+# SVM with two types of kernel  ####
+
+# Searching for the best cost ####
 set.seed(42)
 tune.out.linear <- tune(
   svm,
@@ -916,10 +932,7 @@ tune.out.linear <- tune(
 )
 tune.out.linear
 
-#################################
-# SVM with two types of kernel  #
-
-# Perform a SVM using a linear kernel on the classification problem.
+# Perform a SVM using a linear kernel on the classification problem. ####
 svm.linear <-
   svm(
     tissue ~ .,
@@ -948,10 +961,11 @@ svm.poly <-   svm(
   data = mydat,
   subset = train.mydat,
   kernel = "polynomial",
-  cost = 43.2
+  cost = 1
 )
 summary(svm.poly)
 
+# Error Rates ####
 # Error rate SVM linear classification problem.
 error.rate.prediction.trees(svm.linear,
                             dataset = mydat,
@@ -988,8 +1002,8 @@ error.rate.prediction.trees(svm.poly.r,
                             dataset = mydat,
                             test.set = -train.mydat)
 
-###########################################
-# RandomForest find informative features  #
+
+# RandomForest find informative features  #####
 
 importance(rf.tissues)
 varImpPlot(rf.tissues)
