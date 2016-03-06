@@ -809,10 +809,10 @@ table(qda.class, test.set$tissue)
 # cross-validation setup. Discuss the observed differences in performance of
 # methods for the various classification/regression problems.
 
-#######################
-# Tree-based methods  #
-tissue1 <- "brain_cerebellum"
-tissue2 <- "brain_amygdala"
+
+#### Tree-based methods  ####
+tissue1 <- "brain_cerebellarhemisphere"
+tissue2 <- "brain_cerebellum"
 
 #specific data set
 set.seed(1)
@@ -849,10 +849,8 @@ error.rate.prediction.trees(
   test.set = -train.mydat
 )
 
-# Error rates are the same, tree has just 2 branches. So there is not much to prune.
-
 # Regression ####
-tree.regression <- tree(ENSG00000271043.1_MTRNR2L2 ~ . - tissue[1:40],
+tree.regression <- tree(ENSG00000271043.1_MTRNR2L2 ~ . - tissue,
                         data = mydat,
                         subset = train.mydat)
 
@@ -894,7 +892,7 @@ p.error.regression <-
     column.index = grep("ENSG00000271043.1_MTRNR2L2", colnames(mydat))
   )
 
-
+###Giving NA values, don't know why. The code should work since is working for you.
 mean(p.error.classification$p1.mse)
 mean(p.error.classification$p2.mse) # Lowest MSE so it is going to be used for classification.
 mean(p.error.classification$p3.mse)
@@ -916,10 +914,7 @@ error.rate.prediction.trees(
 
 rf.tissues
 
-
-
-#################################
-# SVM with two types of kernel  ####
+#### SVM with two types of kernel  ####
 
 # Searching for the best cost ####
 set.seed(42)
@@ -961,27 +956,27 @@ svm.poly <-   svm(
   data = mydat,
   subset = train.mydat,
   kernel = "polynomial",
-  cost = 1
+  cost = 23 #In the case of cerebellum and amygdala with 1 is enough
 )
 summary(svm.poly)
 
 # Error Rates ####
 # Error rate SVM linear classification problem.
-error.rate.prediction.trees(svm.linear,
-                            dataset = mydat,
-                            test.set = -train.mydat)
+error.rate.prediction.trees(svm.linear, dataset = mydat, test.set = -train.mydat)
 
 # Error rate SVM polynomial classification problem.
 error.rate.prediction.trees(svm.poly, dataset = mydat, test.set = -train.mydat)
 
+# Regression ####
 svm.linear.r <-
   svm(
     ENSG00000104888.5_SLC17A7 ~ . - tissue,
     data = mydat,
     subset = train.mydat,
     kernel = "linear",
-    cost = 1
+    cost = 23
   )
+
 
 # @TODO Error rate of 1, check it again.
 error.rate.prediction.trees(svm.linear.r,
@@ -994,7 +989,7 @@ svm.poly.r <-   svm(
   data = mydat,
   subset = train.mydat,
   kernel = "polynomial",
-  cost = 43.2
+  cost = 23
 )
 
 # @TODO Error rate of 1, check it again.
