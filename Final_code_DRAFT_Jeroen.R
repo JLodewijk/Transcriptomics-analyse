@@ -811,8 +811,8 @@ table(qda.class, test.set$tissue)
 
 
 #### Tree-based methods  ####
-tissue1 <- "brain_cerebellarhemisphere"
-tissue2 <- "brain_cerebellum"
+tissue1 <- "brain_cerebellum"
+tissue2 <- "brain_amygdala"
 
 #specific data set
 set.seed(1)
@@ -974,7 +974,7 @@ svm.linear.r <-
     data = mydat,
     subset = train.mydat,
     kernel = "linear",
-    cost = 23
+    cost = 1
   )
 
 
@@ -989,7 +989,7 @@ svm.poly.r <-   svm(
   data = mydat,
   subset = train.mydat,
   kernel = "polynomial",
-  cost = 23
+  cost = 1
 )
 
 # @TODO Error rate of 1, check it again.
@@ -1001,7 +1001,8 @@ error.rate.prediction.trees(svm.poly.r,
 # RandomForest find informative features  #####
 
 importance(rf.tissues)
-varImpPlot(rf.tissues)
+varImpPlot(rf.tissues, main = "Cerebellum vs amygdala")
+
 # The results show that for all the trees considered in the rf.tissues, the
 # genes ENSG00000221890.2_NPTXR & ENSG00000183379.4_SYNDIG1L are by the two most
 # important variables. You base this upon their positions in the top of the
@@ -1018,9 +1019,9 @@ worst.genes <-
 p <- length(best.genes) - 1
 p.2 <- p / 2
 
-# Generate a random forest of the best genes for the classification problem.
+# Generate a random forest of the best genes for the classification problem. ####
 rf.best.genes <- randomForest(
-  tissue ~ ENSG00000183036.6_PCP4 + ENSG00000183379.4_SYNDIG1L + ENSG00000176533.8_GNG7 + ENSG00000185615.11_PDIA2 + ENSG00000124785.4_NRN1,
+  tissue ~ ENSG00000258283.1_RP11.386G11.3 + ENSG00000100362.8_PVALB + ENSG00000198121.9_LPAR1 +ENSG00000139899.6_CBLN3 +ENSG00000165802.15_NSMF,
   data = mydat,
   subset = train.mydat,
   mtry = p.2,
@@ -1033,9 +1034,9 @@ error.rate.prediction.trees(
   test.set = -train.mydat
 )
 
-# Generate a random forest of the worst genes for the classification problem.
+# Generate a random forest of the worst genes for the classification problem. ####
 rf.worst.genes <- randomForest(
-  tissue ~ ENSG00000225972.1_MTND1P23 + ENSG00000225630.1_MTND2P28 + ENSG00000237973.1_hsa.mir.6723 + ENSG00000229344.1_RP5.857K21.7 + ENSG00000131584.14_ACAP3,
+  tissue ~ ENSG00000225972.1_MTND1P23 + ENSG00000225630.1_MTND2P28 +ENSG00000237973.1_hsa.mir.6723 + ENSG00000229344.1_RP5.857K21.7 + ENSG00000126709.10_IFI6 ,
   data = mydat,
   subset = train.mydat,
   mtry = p.2,
@@ -1052,10 +1053,10 @@ error.rate.prediction.trees(
 ###############
 # Question 3  #
 
-# Create a tree for the set of best genes.
+# Create a tree for the set of best genes.####
 tree.best.genes <-
   tree(
-    tissue ~ ENSG00000225972.1_MTND1P23 + ENSG00000225630.1_MTND2P28 + ENSG00000237973.1_hsa.mir.6723 + ENSG00000229344.1_RP5.857K21.7 + ENSG00000131584.14_ACAP3,
+    tissue ~ ENSG00000258283.1_RP11.386G11.3 + ENSG00000100362.8_PVALB + ENSG00000198121.9_LPAR1 +ENSG00000139899.6_CBLN3 +ENSG00000165802.15_NSMF,
     data = mydat,
     subset = train.mydat
   )
@@ -1064,8 +1065,8 @@ text(tree.best.genes, pretty = 0)
 
 # Prune the best genes tree.
 prune.tree.best.genes <- tree.pruner(tree.best.genes)
-plot(prune.tree.best)
-text(prune.tree.best, pretty = 0)
+plot(prune.tree.best.genes)
+text(prune.tree.best.genes, pretty = 0)
 
 # Error rate of pruned tree.
 error.rate.prediction.trees(
@@ -1085,29 +1086,84 @@ error.rate.prediction.trees(
 #The same error rate.
 
 rf.best.genes <- randomForest(
-  tissue ~ ENSG00000225972.1_MTND1P23 + ENSG00000225630.1_MTND2P28 + ENSG00000237973.1_hsa.mir.6723 + ENSG00000229344.1_RP5.857K21.7 + ENSG00000131584.14_ACAP3,
+  tissue ~ ENSG00000258283.1_RP11.386G11.3 + ENSG00000100362.8_PVALB + ENSG00000198121.9_LPAR1 +ENSG00000139899.6_CBLN3 +ENSG00000165802.15_NSMF,
   data = mydat,
   subset = train.mydat,
   mtry = (5 - 1) / 2,
   ntree = 500,
   importance = TRUE
 )
-rf.best.genes  # Higher OOB estimate of  error rate
+rf.best.genes  # Higher OOB estimate of  error rate, also in the case of cerebellum and hemsphere example
 rf.tissues
 
 
 lm.fit.two.tissues.best.genes <-
   lm(
-    ENSG00000271043.1_MTRNR2L2 ~ ENSG00000221890.2_NPTXR + ENSG00000183379.4_SYNDIG1L + ENSG00000130558.14_OLFM1 + ENSG00000104888.5_SLC17A7 + ENSG00000124785.4_NRN1,
+    ENSG00000271043.1_MTRNR2L2 ~ ENSG00000258283.1_RP11.386G11.3 + ENSG00000100362.8_PVALB + ENSG00000198121.9_LPAR1 +ENSG00000139899.6_CBLN3 +ENSG00000165802.15_NSMF,
     data = mydat,
     subset = train.mydat
   )
+
+plot(lm.fit.two.tissues.best.genes)
+preds <- predict(lm.fit.two.tissues.best.genes, newdata = mydat[- train.mydat,])
+
+plot(mydat$ENSG00000271043.1_MTRNR2L2[- train.mydat], preds,
+     xlab = "Predicted values for ENSG00000271043.1_MTRNR2L2", 
+     ylab = "Observed values for ENSG00000271043.1_MTRNR2L2")
+abline(0,1, col = "red")
+
 PredictivePerformanceLm(
   y = "ENSG00000271043.1_MTRNR2L2",
   data.set = mydat,
   training.data = train.mydat,
   lm.training = lm.fit.two.tissues.best.genes
 )
+# what is we transform the data with log again as last week?????? ####
+
+log.mydat <- log(mydat[-ncol(mydat)])
+
+is.finite.data.frame <- function(obj){
+  sapply(obj,FUN = function(x) all(is.finite(x)))
+}
+
+# Check if there are any infs in the log-transformed datasets.
+is.finite.data.frame(log.mydat)
+
+
+# Works only on matrixes
+log.mydat <- as.matrix(log.mydat)
+
+# Replace any non finites with 0, this is needed to get the logs to work.
+log.mydat[!is.finite(log.mydat)] <- 0
+
+
+# Converted back to a data.frame for the lm's.
+log.mydat <- as.data.frame(log.mydat)
+
+lm.fit.two.tissues.best.genes.log <-
+  lm(
+    ENSG00000271043.1_MTRNR2L2  ~ ENSG00000258283.1_RP11.386G11.3 + ENSG00000100362.8_PVALB + ENSG00000198121.9_LPAR1 +ENSG00000139899.6_CBLN3 +ENSG00000165802.15_NSMF,
+    data = log.mydat,
+    subset = train.mydat
+  )
+
+plot(lm.fit.two.tissues.best.genes.log)
+preds <- predict(lm.fit.two.tissues.best.genes.log, newdata = mydat[- train.mydat,])
+
+plot(log.mydat$ENSG00000271043.1_MTRNR2L2 [- train.mydat], preds,
+     xlab = "Predicted values for ENSG00000271043.1_MTRNR2L2", 
+     ylab = "Observed values for ENSG00000271043.1_MTRNR2L2",
+     main = "Log transformation best genes")
+abline(0,1, col = "red")
+
+PredictivePerformanceLm(
+  y = "ENSG00000229344.1_RP5.857K21.7",
+  data.set = log.mydat,
+  training.data = train.mydat,
+  lm.training = lm.fit.two.tissues.best.genes.log
+)
+
+
 # R-square =  -0.03732637
 # Fraction of variability explained by the model =  0.0712916
 
@@ -1118,7 +1174,7 @@ PredictivePerformanceLm(
 # Create a tree for everything besides the best features
 tree.all.besides.best <-
   tree(
-    tissue ~ . - ENSG00000221890.2_NPTXR+-ENSG00000183379.4_SYNDIG1L+-ENSG00000130558.14_OLFM1+-ENSG00000104888.5_SLC17A7+-ENSG00000124785.4_NRN1,
+    tissue ~ . - ENSG00000258283.1_RP11.386G11.3+-ENSG00000100362.8_PVALB+-ENSG00000198121.9_LPAR1+-ENSG00000139899.6_CBLN3+-ENSG00000165802.15_NSMF,
     data = mydat,
     subset = train.mydat
   )
@@ -1142,7 +1198,7 @@ error.rate.prediction.trees(
 
 svm.linear.all.besides.best <-
   svm(
-    tissue ~ . - ENSG00000221890.2_NPTXR+-ENSG00000183379.4_SYNDIG1L+-ENSG00000130558.14_OLFM1+-ENSG00000104888.5_SLC17A7+-ENSG00000124785.4_NRN1,
+    tissue ~ . - ENSG00000258283.1_RP11.386G11.3+-ENSG00000100362.8_PVALB+-ENSG00000198121.9_LPAR1+-ENSG00000139899.6_CBLN3+-ENSG00000165802.15_NSMF,
     data = mydat,
     subset = train.mydat,
     kernel = "linear",
@@ -1151,11 +1207,11 @@ svm.linear.all.besides.best <-
 
 svm.poly.all.besides.best <-
   svm(
-    tissue ~ . - ENSG00000221890.2_NPTXR+-ENSG00000183379.4_SYNDIG1L+-ENSG00000130558.14_OLFM1+-ENSG00000104888.5_SLC17A7+-ENSG00000124785.4_NRN1,
+    tissue ~ . - ENSG00000258283.1_RP11.386G11.3+-ENSG00000100362.8_PVALB+-ENSG00000198121.9_LPAR1+-ENSG00000139899.6_CBLN3+-ENSG00000165802.15_NSMF,
     data = mydat,
     subset = train.mydat,
     kernel = "polynomial",
-    cost = 43.2
+    cost = 1
   )
 
 # Error rate SVM linear classification problem for worst genes.
@@ -1169,7 +1225,7 @@ error.rate.prediction.trees(svm.poly.all.besides.best,
                             test.set = -train.mydat)
 
 rf.all.besides.best <- randomForest(
-  tissue ~ . - ENSG00000221890.2_NPTXR+-ENSG00000183379.4_SYNDIG1L+-ENSG00000130558.14_OLFM1+-ENSG00000104888.5_SLC17A7+-ENSG00000124785.4_NRN1,
+  tissue ~ . - ENSG00000258283.1_RP11.386G11.3+-ENSG00000100362.8_PVALB+-ENSG00000198121.9_LPAR1+-ENSG00000139899.6_CBLN3+-ENSG00000165802.15_NSMF,
   data = mydat,
   subset = train.mydat,
   mtry = (5 - 1) / 2,
