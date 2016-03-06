@@ -1019,6 +1019,84 @@ worst.genes <-
 p <- length(best.genes) - 1
 p.2 <- p / 2
 
+# GLM find informative features ###
+
+#The glmnet() function has an alpha argument that determines what type
+#of model is fit. If alpha=0 then a ridge regression model is fit, and if alpha=1
+#then a lasso model is fit.
+
+x <- model.matrix(tissue~.,mydat)
+y <- mydat$tissue
+grid =seq (from= 0.1, to =0, by = -0.001)
+
+#Ridge regression, use of multinomial family due to the several classes of tissue we have ####
+#Also, using lambda = grid we have a wide range of lambda to compare with (possibility of a graph!)
+ridge.fit <- glmnet(x[train.mydat,],y[train.mydat], alpha=0, lambda = grid, family = "binomial")
+plot(ridge.fit, main= "coeff value, lambda 0.1:0", label = T) ##The plot shows that the model is better without the penalty!
+ridge.pred <-predict(ridge.fit, newx = x[-train.mydat,])
+length(coef(ridge.fit))
+mean(ridge.pred==ridge.fit$)
+
+#Plot of predictions of two tissues (only if MULTINOMIAL!) ####
+x <- model.matrix(tissue~.,expr4T.filtered)
+y <- expr4T.filtered$tissue
+grid =10^ seq (10,-2, length =100)
+
+ridge.fit <- glmnet(x[train.expr4T.data,],y[train.expr4T.data], alpha=0, lambda = grid, family = "multinomial")
+plot(ridge.fit)
+ridge.pred <-predict(ridge.fit, type = "coefficients")
+
+plot(ridge.pred$brain_amygdala, ridge.pred$brain_cerebellum)
+quantile(ridge.pred)
+ridge.pred
+
+#Here we do again a ridge regression but with a specific gene ####
+x <- model.matrix(ENSG00000225972.1_MTND1P23~.-tissue, mydat)
+y<- mydat$ENSG00000225972.1_MTND1P23
+grid =10^ seq (10,-2, length =100)
+ridge.fit <- glmnet(x[train.mydat,],y[train.mydat], alpha=0, lambda = grid)
+plot(ridge.fit, main = "Regression ridge", label = T)
+ridge.pred <- predict(ridge.fit, newx = x[-train.mydat,], s = 0.01) ##Changes s, MSE is different
+mean((ridge.pred - y[-train.mydat])^2) ##test MSE
+
+#The MSE increments with its value, bigger lambda, bigger MSE. If default values is used the MSE is very high (a lot)
+##INCLUDE THIS IN THE REPORT!!! WITH A NICE GRAPH!!! WE choose s=0.01 because gives the lowest MSE
+
+##The ridge regression will penalize your coefficients, such that those who are the least efficient in your 
+#estimation will "shrink" the fastest. 
+
+cv.out <- cv.glmnet(x[train.mydat,], y[train.mydat], alpha = 0, type.measure = "mse")
+plot(cv.out)
+
+ridge.pred = predict(ridge.fit, s = cv.out$lambda.min, newx = x[-train,])
+mean((ridge.pred - y[-train])^2)
+
+##We try lasso now ####
+x <- model.matrix(tissue~., mydat)
+y <- mydat$tissue
+grid =10^ seq (10,-2, length =100)
+
+
+ridge.fit <- glmnet(x[train.mydat,],y[train.mydat], alpha=1, lambda = grid, family = "binomial")
+plot(ridge.fit, main= "lasso", label = T) 
+ridge.pred <-predict(ridge.fit, newx = x[-train.mydat,])
+
+# Lasso regression ####
+x <- model.matrix(ENSG00000225972.1_MTND1P23~.-tissue, mydat)
+y<- mydat$ENSG00000225972.1_MTND1P23
+grid =10^ seq (10,-2, length =100)
+ridge.fit <- glmnet(x[train.mydat,],y[train.mydat], alpha=1, lambda = grid)
+plot(ridge.fit, main = "Regression lasso", label = T)
+ridge.pred <- predict(ridge.fit, newx = x[-train.mydat,], s = 0.01) ##Changes s, MSE is different
+mean((ridge.pred - y[-train.mydat])^2) 
+
+cv.out <- cv.glmnet(x[train.mydat,], y[train.mydat], alpha = 1, type.measure = "mse")
+plot(cv.out, main = "Lasso regression")
+
+ridge.pred = predict(ridge.fit, s = cv.out$lambda.min, newx = x[-train,])
+mean((ridge.pred - y[-train])^2)
+
+
 # Generate a random forest of the best genes for the classification problem. ####
 rf.best.genes <- randomForest(
   tissue ~ ENSG00000258283.1_RP11.386G11.3 + ENSG00000100362.8_PVALB + ENSG00000198121.9_LPAR1 +ENSG00000139899.6_CBLN3 +ENSG00000165802.15_NSMF,
