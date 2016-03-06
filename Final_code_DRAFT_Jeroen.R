@@ -1,8 +1,8 @@
 #########################################
-# Name: Raquel Manzo & Jeroen Lodewijk  #
-# Student numbers:
+# Name: Raquel Manzano & Jeroen Lodewijk#
+# Student numbers: & 930203525030       #
+# Project: Bioinformatics               #
 #########################################
-#test##
 
 #############
 # Packages #
@@ -16,19 +16,23 @@
 # 
 # install.packages("MASS")
 
-#############
-# Libraries #
-#############
+####################
+#### Libraries #####
+####################
+
 # Library used for doing a variance inflation factors test.
 library(car)
-#
+
+# Library used for performing k-Nearest Neighbour Classification.
 library(class)
-#
+
+# Library used for regression subset selection
 library(leaps)
-#
+
+# Library used for predictions.
 library(MASS)
 
-# Used for the plotting of the PCA.
+# Library used for the plotting of the PCA.
 library(plotrix)
 
 # Library used for performing a randdomForest.
@@ -46,10 +50,10 @@ library(gbm)
 # Lasso adn the ridge methods
 library(glmnet)
 
-
 ####################
 #### Functions #####
 ####################
+
 #' GlmPredictionErrorRate
 #' Perform a prediction on the test data and calculate the error rate of that prediction.
 #' @param glm.fit: Fitted generalized linear model that has been trained by a trainings set. 
@@ -61,9 +65,16 @@ library(glmnet)
 #' @return Table of predictions and the error rate of the predictions against the test data.
 GlmPredictionErrorRate <-
   function(glm.fit, tissue.1, tissue.2, test.data, type.prediction = "response") {
+    # Make a predicion of the glm on the test data.
     glm.probs <-  predict(glm.fit, test.data, type = type.prediction)
+    
+    # Create replicates of tissue.1 based on the number of observation the test data has.
     glm.pred <- rep(tissue.1, nrow(test.data))
+    
+    # Any predicitions higher than 0.5 will be set as tissue.2
     glm.pred[glm.probs>0.5] <- tissue.2
+    
+    # Give the results of the prediction vs the test data.
     print(table(glm.pred, test.data$tissue))
     return(1 - mean(glm.pred == test.data$tissue))
   }
@@ -172,6 +183,7 @@ tree.pruner <- function(tree.data, seed = 1, randomness = FALSE, regression.tree
     return(prune.tree(tree.regression, best = best.set))
   }
 }
+
 #' Cols
 #' Creates a range of colors that can be used for plotting.
 #' @param vec: is a vector that will be given colors ID's.
@@ -205,6 +217,15 @@ tissue.selection <- function(tissue1, tissue2, data = data.frame(expr4T.filtered
   print(dim(mydata))
   print(table(mydata$tissue))
   return (mydata)
+}
+
+#' is.finite.data.frame
+#' Check if a dataframe does only contain finite data.
+#' @param obj: dataframe that is being checked.
+#'
+#' @return True or False if a column contains finite data only.
+is.finite.data.frame <- function(obj){
+  sapply(obj,FUN = function(x) all(is.finite(x)))
 }
 
 #' DetermineEffectPsRandomForest
@@ -260,6 +281,44 @@ DetermineEffectPsRandomForest <- function(dataset, train.set, test.set, column.i
 }
 
 
+#' steps for a complete glm prediction
+#' @param tissues.pair: a vector of two tissues 
+#' @param data.set: used data
+#' @param fit.type: glm fit as default, if change to lda problems in the alst part (change?)
+#' 
+#' @return result: test error rate
+glm.model <- function(fit.type = glm,data.set, tissues.pair){
+  
+  set.seed(1)
+  #pairs of tissues
+  tissue1 <- tissues.pair[1]
+  tissue2 <- tissues.pair[2]
+  
+  #specific data set
+  mydat <- tissue.selection(tissue1, tissue2, data.set)
+  
+  train <- sample(1:nrow(mydat), round(nrow(mydat) * 0.35))
+  test.set <- mydat[-train,]
+  
+  #model
+  tissues <- mydat$tissue
+  new.data <- data.frame(mydat[,1:10], tissues)
+  fit <- fit.type(tissues~.,
+                  data = new.data,
+                  family = binomial,
+                  subset = train
+  )
+  
+  #predictions
+  
+  probs <-  predict(fit, test.set, type = "response")
+  pred <- rep(tissue1, nrow(test.set))
+  pred[probs>0.5] = tissue2
+  cat(table(pred, test.set$tissue))
+  
+  
+  return (1-mean(pred == test.set$tissue) )
+}
 
 #############
 # Main code #
@@ -309,7 +368,7 @@ mydat <- tissue.selection(tissue1, tissue2, data = expr4T.filtered)
 
 #LINEAR REGReSSION MODELS
 
-set.seed(42)
+set.seed(1)
 ####Training set selection####
 train.expr4T.data <-
   sample(1:nrow(expr4T.filtered), round(nrow(expr4T.filtered) * 0.35))
@@ -443,7 +502,7 @@ PredictivePerformanceLm(
 
 sqrt(vif(lm.fit.3)) > 2
 
-#### SUMMARIES OF ALL LINEAR MODELS ####
+#### SUMMARIES OF ALL LINEAR MODELS (Examples of coeff below in case we want to use it)####
 summary(lm.fit.1) #14 SIGNIFICANT COEFF
 #ENSG00000225972.1_MTND1P23                4.203e-02  1.210e-02   3.474 0.000595
 #ENSG00000064787.8_BCAS1                   1.277e+00  8.954e-01   1.426 0.154862
@@ -467,19 +526,11 @@ summary(lm.fit.3) # 11
 summary(lm.fit.3.two.tissues) # 0
 
 
-
-# b) How many variables are significant? How do you decide on significance?
-# Perform summary on all of them, but if the results show that themodel is highly significant, while few individual predictors are significant. Then collinearity
-
-# Perform a log on everything, besides the tissues. 
-
-###CONVERTION OF THE DATA ####
+###CONVERTION OF THE DATA (Log) ####
 log.mydat <- log(mydat[-ncol(mydat)])
 log.expr4T <- log(expr4T.filtered[-ncol(expr4T.filtered)])
 
-is.finite.data.frame <- function(obj){
-  sapply(obj,FUN = function(x) all(is.finite(x)))
-}
+
 
 # Check if there are any infs in the log-transformed datasets.
 is.finite.data.frame(log.mydat)
@@ -513,7 +564,7 @@ plot(log.expr4T$ENSG00000271043.1_MTRNR2L2[-train.expr4T.data], test.pred,
      ylab = "Observed values for ENSG00000271043.1_MTRNR2L2")
 abline(0,1, col = "red")
 
-log.mydat <- log.mydat[,1:100] #again we select a small data set, otherwise it doesn't work
+log.mydat <- log.mydat[,1:70] #again we select a small data set, otherwise it doesn't work
 #Two tissue model
 lm.fit.1.two.tissues.log <-
   lm(ENSG00000271043.1_MTRNR2L2 ~ .,
@@ -590,24 +641,108 @@ PredictivePerformanceLm(
 )
 
 
+#### COMPARATION OF PERFORMANCES BT TISSUES ####
 
+tissues.pairs <- c("brain_hippocampus" , "brain_nucleusaccumbens",
+                    "brain_spinalcord" , "brain_substantianigra",
+                    "brain_cerebellarhemisphere" , "brain_cerebellum",
+                    "brain_cerebellum" , "brain_amygdala",
+                    "brain_cortex" , "brain_putamen")
+set.seed(1)
+#### FIRST PAIR: "brain_hippocampus" , "brain_nucleusaccumbens" ####
+#pairs of tissues
+tissue1 <- "brain_cerebellarhemisphere"
+tissue2 <- "brain_cerebellum"
 
+#specific data set
+set.seed(1)
+mydat <- tissue.selection(tissue1, tissue2, expr4T.filtered)
 
+train <- sample(1:nrow(mydat), round(nrow(mydat) * 0.35))
+test.set <- mydat[-train,]
 
+#GLM model####
 
+glm.fit <- glm(tissue~.,
+                data = mydat,
+                family = binomial,
+                subset = train
+)
 
+#predictions
+probs <-  predict(fit, test.set, type = "response")
+pred <- rep(tissue1, nrow(test.set))
+pred[probs>0.5] = tissue2
+table(pred, test.set$tissue)
 
+1-mean(pred == test.set$tissue)
+  
+#LDA model####
+lda.fit <- lda(tissue~.,
+               data = mydat,
+               subset = train)
 
+lda.pred <- predict(lda.fit, test.set)
+lda.class <- lda.pred$class
+table(lda.class, test.set$tissue)
+1-mean(lda.class==test.set$tissue)
+#QDA model ####
+qda.fit <- qda(tissue~.,
+               data = mydat,
+               subset = train)
+qda.class <- predict(qda.fit, test.set)$class
+table(qda.class, test.set$tissue)
+1-mean(qda.class== test.set$tissue)
+#KNN model ####
+
+knn.pred <- knn(mydat[train,][,1:10], test.set[,1:10], mydat$tissue[train], k=1)
+table(knn.pred, test.set$tissue)
+mean(knn.pred==test.set$tissue)
+
+##Adding a non-linear term to lda (best performance) ####
+log.term <- log(mydat$ENSG00000131771.9_PPP1R1B)
+log.added <- data.frame(mydat, log.term)
+set.seed(1)
+train <- sample(1:nrow(log.added), round(nrow(log.added) * 0.35))
+test.set <- mydat[-train,]
+lda.fit <- lda(tissue~.,
+               data = log.added,
+               subset = train)
+
+lda.pred <- predict(lda.fit, test.set)
+lda.class <- lda.pred$class
+table(lda.class, test.set$tissue)
+1-mean(lda.class==test.set$tissue)
+
+glm.fit <- glm(tissue~.,
+               data = log.added,
+               family = binomial,
+               subset = train
+)
+
+#predictions
+probs <-  predict(glm.fit, test.set, type = "response")
+pred <- rep(tissue1, nrow(test.set))
+pred[probs>0.5] = tissue2
+table(pred, test.set$tissue)
+
+1-mean(pred == test.set$tissue)
+
+qda.fit <- qda(tissue~.,
+               data = log.added,
+               subset = train)
+qda.class <- predict(qda.fit, test.set)$class
+table(qda.class, test.set$tissue)
+1-mean(qda.class== test.set$tissue)
 
 ####################################################################################################################################
 ####################################################################################################################################
 ####################################################################################################################################
 ####################################################################################################################################
 
-
-
-####  WEEK 2 ####
-
+#################
+#### Week 2 #####
+#################
 
 # 1. Apply at least two tree-based methods, and an SVM with two types of kernel
 # (all presented this week) to some of the problems analysed last week. Do so
@@ -893,7 +1028,9 @@ rf.all.besides.best<- randomForest(
 ####################################################################################################################################
 
 
-####  WEEK 3  ####
+#################
+#### Week 3 #####
+#################
 
 # 1. Apply PCA to the expression data from the brain subregions. Perform PCA
 # both with and without scaling to unit standard deviation. Address the
