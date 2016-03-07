@@ -776,7 +776,7 @@ GlmPredictionErrorRate(
 
 #QDA model ####
 qda.fit <- qda(tissue ~ .,
-               data = log.added,
+               data = log.added[,1:10],
                subset = train)
 QdaLdaPredictionError(model = qda.fit, test.data = test.set)
 
