@@ -1029,13 +1029,14 @@ x <- model.matrix(tissue~.,mydat)
 y <- mydat$tissue
 grid =seq (from= 0.1, to =0, by = -0.001)
 
-#Ridge regression, use of multinomial family due to the several classes of tissue we have ####
+#Ridge regression ####
 #Also, using lambda = grid we have a wide range of lambda to compare with (possibility of a graph!)
 ridge.fit <- glmnet(x[train.mydat,],y[train.mydat], alpha=0, lambda = grid, family = "binomial")
-plot(ridge.fit, main= "coeff value, lambda 0.1:0", label = T) ##The plot shows that the model is better without the penalty!
+plot(ridge.fit, main= "ridge classification", label = T) ##The plot shows that the model is better without the penalty!
 ridge.pred <-predict(ridge.fit, newx = x[-train.mydat,])
+
 length(coef(ridge.fit))
-mean(ridge.pred==ridge.fit$)
+
 
 #Plot of predictions of two tissues (only if MULTINOMIAL!) ####
 x <- model.matrix(tissue~.,expr4T.filtered)
@@ -1051,19 +1052,34 @@ quantile(ridge.pred)
 ridge.pred
 
 #Here we do again a ridge regression but with a specific gene ####
-x <- model.matrix(ENSG00000225972.1_MTND1P23~.-tissue, mydat)
-y<- mydat$ENSG00000225972.1_MTND1P23
+x <- model.matrix(ENSG00000229344.1_RP5.857K21.7~.-tissue, mydat)
+y<- mydat$ENSG00000229344.1_RP5.857K21.7
 grid =10^ seq (10,-2, length =100)
 ridge.fit <- glmnet(x[train.mydat,],y[train.mydat], alpha=0, lambda = grid)
 plot(ridge.fit, main = "Regression ridge", label = T)
 ridge.pred <- predict(ridge.fit, newx = x[-train.mydat,], s = 0.01) ##Changes s, MSE is different
 mean((ridge.pred - y[-train.mydat])^2) ##test MSE
 
+
+##repeated model only with the three significant genes ####
+
+x <- model.matrix(ENSG00000271043.1_MTRNR2L2~ENSG00000101200.5_AVP+ENSG00000183379.4_SYNDIG1L+ENSG00000101405.3_OXT+ENSG00000209082.1_MT.TL1+ENSG00000130643.4_CALY, mydat) #remove tissue to see differences!
+y<- mydat$ENSG00000271043.1_MTRNR2L2
+grid =10^ seq (10,-2, length =100)
+ridge.fit <- glmnet(x[train.mydat,],y[train.mydat], alpha=1, lambda = grid)
+plot(ridge.fit, main = "Regression ridge", label = T)
+ridge.pred <- predict(ridge.fit, newx = x[-train.mydat,], s = 0.01) ##Changes s, MSE is different
+mean((ridge.pred - y[-train.mydat])^2) ##test MSE
+
+
+
+ridge.fit
+mydat[,147:152]
+table(mydat$tissue)
 #The MSE increments with its value, bigger lambda, bigger MSE. If default values is used the MSE is very high (a lot)
 ##INCLUDE THIS IN THE REPORT!!! WITH A NICE GRAPH!!! WE choose s=0.01 because gives the lowest MSE
 
-##The ridge regression will penalize your coefficients, such that those who are the least efficient in your 
-#estimation will "shrink" the fastest. 
+
 
 cv.out <- cv.glmnet(x[train.mydat,], y[train.mydat], alpha = 0, type.measure = "mse")
 plot(cv.out)
@@ -1072,6 +1088,7 @@ ridge.pred = predict(ridge.fit, s = cv.out$lambda.min, newx = x[-train,])
 mean((ridge.pred - y[-train])^2)
 
 ##We try lasso now ####
+##Classification, not useful ####
 x <- model.matrix(tissue~., mydat)
 y <- mydat$tissue
 grid =10^ seq (10,-2, length =100)
@@ -1082,19 +1099,19 @@ plot(ridge.fit, main= "lasso", label = T)
 ridge.pred <-predict(ridge.fit, newx = x[-train.mydat,])
 
 # Lasso regression ####
-x <- model.matrix(ENSG00000225972.1_MTND1P23~.-tissue, mydat)
-y<- mydat$ENSG00000225972.1_MTND1P23
+x <- model.matrix(ENSG00000229344.1_RP5.857K21.7~.-tissue, mydat)
+y<- mydat$ENSG00000229344.1_RP5.857K21.7
 grid =10^ seq (10,-2, length =100)
-ridge.fit <- glmnet(x[train.mydat,],y[train.mydat], alpha=1, lambda = grid)
-plot(ridge.fit, main = "Regression lasso", label = T)
-ridge.pred <- predict(ridge.fit, newx = x[-train.mydat,], s = 0.01) ##Changes s, MSE is different
-mean((ridge.pred - y[-train.mydat])^2) 
+lasso.fit <- glmnet(x[train.mydat,],y[train.mydat], alpha=1, lambda = grid)
+plot(lasso.fit, main = "Regression lasso", label = T)
+lasso.pred <- predict(lasso.fit, newx = x[-train.mydat,], s = 0.01) ##Changes s, MSE is different. 0.01 seems to give the lowest MSE.
+mean((lasso.pred - y[-train.mydat])^2) 
 
 cv.out <- cv.glmnet(x[train.mydat,], y[train.mydat], alpha = 1, type.measure = "mse")
 plot(cv.out, main = "Lasso regression")
 
-ridge.pred = predict(ridge.fit, s = cv.out$lambda.min, newx = x[-train,])
-mean((ridge.pred - y[-train])^2)
+lasso.pred = predict(lasso.fit, s = cv.out$lambda.min, newx = x[-train,])
+mean((lasso.pred - y[-train])^2)
 
 
 # Generate a random forest of the best genes for the classification problem. ####
