@@ -990,7 +990,6 @@ svm.poly.r <-   svm(
   cost = 1
 )
 
-# @TODO Error rate of 1, check it again.
 error.rate.prediction.trees(svm.poly.r,
                             dataset = mydat,
                             test.set = -train.mydat)
@@ -1146,6 +1145,8 @@ error.rate.prediction.trees(
 ###############
 # Question 3  #
 
+set.seed(1)
+
 # Create a tree for the set of best genes.####
 tree.best.genes <-
   tree(
@@ -1296,6 +1297,7 @@ PredictivePerformanceLm(
 ###############
 # Question 4  #
 
+set.seed(1)
 # Create a tree for everything besides the best features
 tree.all.besides.best <-
   tree(
