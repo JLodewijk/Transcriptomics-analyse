@@ -1,8 +1,8 @@
-#########################################
-# Name: Raquel Manzano & Jeroen Lodewijk#
-# Student numbers: & 930203525030       #
-# Project: Bioinformatics               #
-#########################################
+################################################
+# Name: Raquel Manzano & Jeroen Lodewijk       #
+# Student numbers: 920916543170 & 930203525030 #
+# Project: Bioinformatics                      #
+################################################
 
 #############
 # Packages #
@@ -441,19 +441,6 @@ plot(lm.fit.1)
 # Check if there is evidence of non-linearity for ENSG00000271043.1_MTRNR2L2 fpr two tissue data
 plot(lm.fit.1.two.tissues)
 
-#### Approach for avoiding patterns in linearity plot(NOT SUCCESS) Remove? It is useless so maybe we can just omit it. #####
-reduced <-
-  c(names(lm.fit.1$fitted.values[which(lm.fit.1$fitted.values > 500)]))
-a <- expr4T.filtered[reduced, ]
-
-lm.fit.reduced <-
-  lm(ENSG00000225972.1_MTND1P23 ~ .,
-     data = a,
-     subset = train.expr4T.data)
-plot(lm.fit.reduced)
-
-rm(reduced, a, lm.fit.reduced)
-
 #### Checking predictions ####
 
 PredictivePerformanceLm(
@@ -552,27 +539,17 @@ PredictivePerformanceLm(
 sqrt(vif(lm.fit.3)) > 2
 
 #### SUMMARIES OF ALL LINEAR MODELS (Examples of coeff below in case we want to use it)####
-summary(lm.fit.1) #14 SIGNIFICANT COEFF
-#ENSG00000225972.1_MTND1P23                4.203e-02  1.210e-02   3.474 0.000595
-#ENSG00000064787.8_BCAS1                   1.277e+00  8.954e-01   1.426 0.154862
+summary(lm.fit.1) 
 
-summary(lm.fit.1.two.tissues) # 4
-#ENSG00000225972.1_MTND1P23                  0.05533    0.03846   1.439   0.2237
-#ENSG00000104419.10_NDRG1                   11.57953    3.43752   3.369   0.0281 *
+summary(lm.fit.1.two.tissues) 
 
-summary(lm.fit.2) # 5
-#ENSG00000125144.9_MT1G                   -5.575e+00  1.840e+00  -3.029 0.002681 **
-#ENSG00000173267.9_SNCG                    6.329e+00  1.899e+00   3.332 0.000977 ***
+summary(lm.fit.2) 
 
-summary(lm.fit.2.two.tissues) # 6
-#ENSG00000234745.5_HLA.B                     58.3789    20.2977   2.876   0.0452 *
-#ENSG00000237973.1_hsa.mir.6723               0.5232     0.1702   3.075   0.0371 *
+summary(lm.fit.2.two.tissues) 
 
-summary(lm.fit.3) # 11
-#tissuebrain_anteriorcortex                6.144e+01  1.379e+01   4.456 1.21e-05 ***
-#ENSG00000125148.6_MT2A                    1.746e-01  4.950e-02   3.527 0.000491 ***
+summary(lm.fit.3) 
 
-summary(lm.fit.3.two.tissues) # 0
+summary(lm.fit.3.two.tissues) 
 
 ###CONVERTION OF THE DATA (Log) ####
 log.mydat <- log(mydat[-ncol(mydat)])
@@ -710,23 +687,19 @@ PredictivePerformanceLm(
 
 #### COMPARATION OF PERFORMANCES BT TISSUES ####
 
-tissues.pairs <- c(
-  "brain_hippocampus" ,
-  "brain_nucleusaccumbens",
-  "brain_spinalcord" ,
-  "brain_substantianigra",
-  "brain_cerebellarhemisphere" ,
-  "brain_cerebellum",
-  "brain_cerebellum" ,
-  "brain_amygdala",
-  "brain_cortex" ,
-  "brain_putamen"
-)
+# Tissues pairs:
+#   "brain_hippocampus" ,"brain_nucleusaccumbens"
+#   "brain_spinalcord" ,"brain_substantianigra"
+#   "brain_cerebellarhemisphere" ,"brain_cerebellum"
+#   "brain_cerebellum" , "brain_amygdala"
+#   "brain_cortex" ,"brain_putamen"
+# 
+
 set.seed(1)
 #### FIRST PAIR: "brain_hippocampus" , "brain_nucleusaccumbens" ####
 #pairs of tissues
-tissue1 <- "brain_cerebellarhemisphere"
-tissue2 <- "brain_cerebellum"
+tissue1 <- "brain_cortex"
+tissue2 <- "brain_putamen"
 
 #specific data set
 set.seed(1)
@@ -736,9 +709,11 @@ train <- sample(1:nrow(mydat), round(nrow(mydat) * 0.35))
 test.set <- mydat[-train, ]
 
 #GLM model####
+tissue <- mydat$tissue
+mydat.reduced <- data.frame(mydat[,1:10], tissue) #Needed fot he good performance of the model
 
 glm.fit <- glm(tissue ~ .,
-               data = mydat,
+               data = mydat.reduced,
                family = binomial,
                subset = train)
 
@@ -747,22 +722,22 @@ GlmPredictionErrorRate(glm.fit = glm.fit, tissue.1 = tissue1, tissue.2 = tissue2
 
 #LDA model####
 lda.fit <- lda(tissue ~ .,
-               data = mydat,
+               data = mydat.reduced,
                subset = train)
 QdaLdaPredictionError(model = lda.fit, test.data = test.set)
 
 #QDA model ####
 qda.fit <- qda(tissue ~ ., # DOES NOT WORK
-               data = mydat,
+               data = mydat.reduced,
                subset = train)
 QdaLdaPredictionError(model = qda.fit, test.data = test.set)
 
 #KNN model ####
 knn.pred <-
-  knn(mydat[train, ][, 1:10], test.set[, 1:10], mydat$tissue[train], k =
+  knn(mydat[train, ][, 1:10], test.set[, 1:10], mydat.reduced$tissue[train], k =
         1)
 table(knn.pred, test.set$tissue)
-mean(knn.pred == test.set$tissue)
+1-mean(knn.pred == test.set$tissue)
 
 ##Adding a non-linear term to lda (best performance) ####
 log.term <- log(mydat$ENSG00000131771.9_PPP1R1B)
@@ -771,15 +746,15 @@ set.seed(1)
 train <- sample(1:nrow(log.added), round(nrow(log.added) * 0.35))
 test.set <- mydat[-train, ]
 
-#LDA model####
+#LDA model log ####
 lda.fit <- lda(tissue ~ .,
-               data = log.added,
+               data = log.added[,1:10],
                subset = train)
 QdaLdaPredictionError(model = lda.fit, test.data = test.set)
 
-#GLM model####
+#GLM model log####
 glm.fit <- glm(tissue ~ .,
-               data = log.added,
+               data = log.added[,1:10],
                family = binomial,
                subset = train)
 GlmPredictionErrorRate(glm.fit = glm.fit, tissue.1 = tissue1, tissue.2 = tissue2,test.data = test.set)
