@@ -561,7 +561,6 @@ summary(lm.fit.3) # 11
 
 summary(lm.fit.3.two.tissues) # 0
 
-
 ###CONVERTION OF THE DATA (Log) ####
 log.mydat <- log(mydat[-ncol(mydat)])
 log.expr4T <- log(expr4T.filtered[-ncol(expr4T.filtered)])
@@ -694,7 +693,6 @@ PredictivePerformanceLm(
   lm.training = lm.fit.2.two.tissues.log
 )
 
-
 #### COMPARATION OF PERFORMANCES BT TISSUES ####
 
 tissues.pairs <- c(
@@ -736,7 +734,6 @@ pred[probs > 0.5] = tissue2
 table(pred, test.set$tissue)
 
 1 - mean(pred == test.set$tissue)
-
 #LDA model####
 lda.fit <- lda(tissue ~ .,
                data = mydat,
@@ -812,10 +809,21 @@ table(qda.class, test.set$tissue)
 # cross-validation setup. Discuss the observed differences in performance of
 # methods for the various classification/regression problems.
 
-#######################
-# Tree-based methods  #
 
-# Create the tree for the classification problem.
+#### Tree-based methods  ####
+tissue1 <- "brain_cerebellum"
+tissue2 <- "brain_amygdala"
+
+#specific data set
+set.seed(1)
+mydat <- tissue.selection(tissue1, tissue2, expr4T.filtered)
+
+
+train.mydat <- sample(1:nrow(mydat), round(nrow(mydat) * 0.35))
+test.set <- mydat[-train, ]
+
+# Method 1 ####
+# Create the tree for the classification problem. ####
 tree.tissues <- tree(tissue ~ .,
                      data = mydat,
                      subset = train.mydat)
@@ -841,11 +849,11 @@ error.rate.prediction.trees(
   test.set = -train.mydat
 )
 
-# Error rates are the same, tree has just 2 branches. So there is not much to prune.
-
+# Regression ####
 tree.regression <- tree(ENSG00000271043.1_MTRNR2L2 ~ . - tissue,
                         data = mydat,
                         subset = train.mydat)
+
 prune.tree.regression <-
   tree.pruner(tree.regression, regression.tree = TRUE)
 
@@ -862,7 +870,7 @@ error.rate.prediction.trees(
   type.prediction = "vector"
 )
 
-# Method 2
+# Method 2 ####
 
 p <- ncol(mydat) - 1
 p.2 <- p / 2
@@ -884,7 +892,7 @@ p.error.regression <-
     column.index = grep("ENSG00000271043.1_MTRNR2L2", colnames(mydat))
   )
 
-
+###Giving NA values, don't know why. The code should work since is working for you.
 mean(p.error.classification$p1.mse)
 mean(p.error.classification$p2.mse) # Lowest MSE so it is going to be used for classification.
 mean(p.error.classification$p3.mse)
@@ -906,6 +914,9 @@ error.rate.prediction.trees(
 
 rf.tissues
 
+#### SVM with two types of kernel  ####
+
+# Searching for the best cost ####
 set.seed(42)
 tune.out.linear <- tune(
   svm,
@@ -916,10 +927,7 @@ tune.out.linear <- tune(
 )
 tune.out.linear
 
-#################################
-# SVM with two types of kernel  #
-
-# Perform a SVM using a linear kernel on the classification problem.
+# Perform a SVM using a linear kernel on the classification problem. ####
 svm.linear <-
   svm(
     tissue ~ .,
@@ -948,18 +956,18 @@ svm.poly <-   svm(
   data = mydat,
   subset = train.mydat,
   kernel = "polynomial",
-  cost = 43.2
+  cost = 23 #In the case of cerebellum and amygdala with 1 is enough
 )
 summary(svm.poly)
 
+# Error Rates ####
 # Error rate SVM linear classification problem.
-error.rate.prediction.trees(svm.linear,
-                            dataset = mydat,
-                            test.set = -train.mydat)
+error.rate.prediction.trees(svm.linear, dataset = mydat, test.set = -train.mydat)
 
 # Error rate SVM polynomial classification problem.
 error.rate.prediction.trees(svm.poly, dataset = mydat, test.set = -train.mydat)
 
+# Regression ####
 svm.linear.r <-
   svm(
     ENSG00000104888.5_SLC17A7 ~ . - tissue,
@@ -968,6 +976,7 @@ svm.linear.r <-
     kernel = "linear",
     cost = 1
   )
+
 
 # @TODO Error rate of 1, check it again.
 error.rate.prediction.trees(svm.linear.r,
@@ -980,7 +989,7 @@ svm.poly.r <-   svm(
   data = mydat,
   subset = train.mydat,
   kernel = "polynomial",
-  cost = 43.2
+  cost = 1
 )
 
 # @TODO Error rate of 1, check it again.
@@ -988,11 +997,12 @@ error.rate.prediction.trees(svm.poly.r,
                             dataset = mydat,
                             test.set = -train.mydat)
 
-###########################################
-# RandomForest find informative features  #
+
+# RandomForest find informative features  #####
 
 importance(rf.tissues)
-varImpPlot(rf.tissues)
+varImpPlot(rf.tissues, main = "Cerebellum vs amygdala")
+
 # The results show that for all the trees considered in the rf.tissues, the
 # genes ENSG00000221890.2_NPTXR & ENSG00000183379.4_SYNDIG1L are by the two most
 # important variables. You base this upon their positions in the top of the
@@ -1009,9 +1019,87 @@ worst.genes <-
 p <- length(best.genes) - 1
 p.2 <- p / 2
 
-# Generate a random forest of the best genes for the classification problem.
+# GLM find informative features ###
+
+#The glmnet() function has an alpha argument that determines what type
+#of model is fit. If alpha=0 then a ridge regression model is fit, and if alpha=1
+#then a lasso model is fit.
+
+x <- model.matrix(tissue~.,mydat)
+y <- mydat$tissue
+grid =seq (from= 0.1, to =0, by = -0.001)
+
+#Ridge regression, use of multinomial family due to the several classes of tissue we have ####
+#Also, using lambda = grid we have a wide range of lambda to compare with (possibility of a graph!)
+ridge.fit <- glmnet(x[train.mydat,],y[train.mydat], alpha=0, lambda = grid, family = "binomial")
+plot(ridge.fit, main= "coeff value, lambda 0.1:0", label = T) ##The plot shows that the model is better without the penalty!
+ridge.pred <-predict(ridge.fit, newx = x[-train.mydat,])
+length(coef(ridge.fit))
+mean(ridge.pred==ridge.fit$)
+
+#Plot of predictions of two tissues (only if MULTINOMIAL!) ####
+x <- model.matrix(tissue~.,expr4T.filtered)
+y <- expr4T.filtered$tissue
+grid =10^ seq (10,-2, length =100)
+
+ridge.fit <- glmnet(x[train.expr4T.data,],y[train.expr4T.data], alpha=0, lambda = grid, family = "multinomial")
+plot(ridge.fit)
+ridge.pred <-predict(ridge.fit, type = "coefficients")
+
+plot(ridge.pred$brain_amygdala, ridge.pred$brain_cerebellum)
+quantile(ridge.pred)
+ridge.pred
+
+#Here we do again a ridge regression but with a specific gene ####
+x <- model.matrix(ENSG00000225972.1_MTND1P23~.-tissue, mydat)
+y<- mydat$ENSG00000225972.1_MTND1P23
+grid =10^ seq (10,-2, length =100)
+ridge.fit <- glmnet(x[train.mydat,],y[train.mydat], alpha=0, lambda = grid)
+plot(ridge.fit, main = "Regression ridge", label = T)
+ridge.pred <- predict(ridge.fit, newx = x[-train.mydat,], s = 0.01) ##Changes s, MSE is different
+mean((ridge.pred - y[-train.mydat])^2) ##test MSE
+
+#The MSE increments with its value, bigger lambda, bigger MSE. If default values is used the MSE is very high (a lot)
+##INCLUDE THIS IN THE REPORT!!! WITH A NICE GRAPH!!! WE choose s=0.01 because gives the lowest MSE
+
+##The ridge regression will penalize your coefficients, such that those who are the least efficient in your 
+#estimation will "shrink" the fastest. 
+
+cv.out <- cv.glmnet(x[train.mydat,], y[train.mydat], alpha = 0, type.measure = "mse")
+plot(cv.out)
+
+ridge.pred = predict(ridge.fit, s = cv.out$lambda.min, newx = x[-train,])
+mean((ridge.pred - y[-train])^2)
+
+##We try lasso now ####
+x <- model.matrix(tissue~., mydat)
+y <- mydat$tissue
+grid =10^ seq (10,-2, length =100)
+
+
+ridge.fit <- glmnet(x[train.mydat,],y[train.mydat], alpha=1, lambda = grid, family = "binomial")
+plot(ridge.fit, main= "lasso", label = T) 
+ridge.pred <-predict(ridge.fit, newx = x[-train.mydat,])
+
+# Lasso regression ####
+x <- model.matrix(ENSG00000225972.1_MTND1P23~.-tissue, mydat)
+y<- mydat$ENSG00000225972.1_MTND1P23
+grid =10^ seq (10,-2, length =100)
+ridge.fit <- glmnet(x[train.mydat,],y[train.mydat], alpha=1, lambda = grid)
+plot(ridge.fit, main = "Regression lasso", label = T)
+ridge.pred <- predict(ridge.fit, newx = x[-train.mydat,], s = 0.01) ##Changes s, MSE is different
+mean((ridge.pred - y[-train.mydat])^2) 
+
+cv.out <- cv.glmnet(x[train.mydat,], y[train.mydat], alpha = 1, type.measure = "mse")
+plot(cv.out, main = "Lasso regression")
+
+ridge.pred = predict(ridge.fit, s = cv.out$lambda.min, newx = x[-train,])
+mean((ridge.pred - y[-train])^2)
+
+
+# Generate a random forest of the best genes for the classification problem. ####
 rf.best.genes <- randomForest(
-  tissue ~ ENSG00000183036.6_PCP4 + ENSG00000183379.4_SYNDIG1L + ENSG00000176533.8_GNG7 + ENSG00000185615.11_PDIA2 + ENSG00000124785.4_NRN1,
+  tissue ~ ENSG00000258283.1_RP11.386G11.3 + ENSG00000100362.8_PVALB + ENSG00000198121.9_LPAR1 +ENSG00000139899.6_CBLN3 +ENSG00000165802.15_NSMF,
   data = mydat,
   subset = train.mydat,
   mtry = p.2,
@@ -1024,9 +1112,9 @@ error.rate.prediction.trees(
   test.set = -train.mydat
 )
 
-# Generate a random forest of the worst genes for the classification problem.
+# Generate a random forest of the worst genes for the classification problem. ####
 rf.worst.genes <- randomForest(
-  tissue ~ ENSG00000225972.1_MTND1P23 + ENSG00000225630.1_MTND2P28 + ENSG00000237973.1_hsa.mir.6723 + ENSG00000229344.1_RP5.857K21.7 + ENSG00000131584.14_ACAP3,
+  tissue ~ ENSG00000225972.1_MTND1P23 + ENSG00000225630.1_MTND2P28 +ENSG00000237973.1_hsa.mir.6723 + ENSG00000229344.1_RP5.857K21.7 + ENSG00000126709.10_IFI6 ,
   data = mydat,
   subset = train.mydat,
   mtry = p.2,
@@ -1043,10 +1131,10 @@ error.rate.prediction.trees(
 ###############
 # Question 3  #
 
-# Create a tree for the set of best genes.
+# Create a tree for the set of best genes.####
 tree.best.genes <-
   tree(
-    tissue ~ ENSG00000225972.1_MTND1P23 + ENSG00000225630.1_MTND2P28 + ENSG00000237973.1_hsa.mir.6723 + ENSG00000229344.1_RP5.857K21.7 + ENSG00000131584.14_ACAP3,
+    tissue ~ ENSG00000258283.1_RP11.386G11.3 + ENSG00000100362.8_PVALB + ENSG00000198121.9_LPAR1 +ENSG00000139899.6_CBLN3 +ENSG00000165802.15_NSMF,
     data = mydat,
     subset = train.mydat
   )
@@ -1055,8 +1143,8 @@ text(tree.best.genes, pretty = 0)
 
 # Prune the best genes tree.
 prune.tree.best.genes <- tree.pruner(tree.best.genes)
-plot(prune.tree.best)
-text(prune.tree.best, pretty = 0)
+plot(prune.tree.best.genes)
+text(prune.tree.best.genes, pretty = 0)
 
 # Error rate of pruned tree.
 error.rate.prediction.trees(
@@ -1076,29 +1164,84 @@ error.rate.prediction.trees(
 #The same error rate.
 
 rf.best.genes <- randomForest(
-  tissue ~ ENSG00000225972.1_MTND1P23 + ENSG00000225630.1_MTND2P28 + ENSG00000237973.1_hsa.mir.6723 + ENSG00000229344.1_RP5.857K21.7 + ENSG00000131584.14_ACAP3,
+  tissue ~ ENSG00000258283.1_RP11.386G11.3 + ENSG00000100362.8_PVALB + ENSG00000198121.9_LPAR1 +ENSG00000139899.6_CBLN3 +ENSG00000165802.15_NSMF,
   data = mydat,
   subset = train.mydat,
   mtry = (5 - 1) / 2,
   ntree = 500,
   importance = TRUE
 )
-rf.best.genes  # Higher OOB estimate of  error rate
+rf.best.genes  # Higher OOB estimate of  error rate, also in the case of cerebellum and hemsphere example
 rf.tissues
 
 
 lm.fit.two.tissues.best.genes <-
   lm(
-    ENSG00000271043.1_MTRNR2L2 ~ ENSG00000221890.2_NPTXR + ENSG00000183379.4_SYNDIG1L + ENSG00000130558.14_OLFM1 + ENSG00000104888.5_SLC17A7 + ENSG00000124785.4_NRN1,
+    ENSG00000271043.1_MTRNR2L2 ~ ENSG00000258283.1_RP11.386G11.3 + ENSG00000100362.8_PVALB + ENSG00000198121.9_LPAR1 +ENSG00000139899.6_CBLN3 +ENSG00000165802.15_NSMF,
     data = mydat,
     subset = train.mydat
   )
+
+plot(lm.fit.two.tissues.best.genes)
+preds <- predict(lm.fit.two.tissues.best.genes, newdata = mydat[- train.mydat,])
+
+plot(mydat$ENSG00000271043.1_MTRNR2L2[- train.mydat], preds,
+     xlab = "Predicted values for ENSG00000271043.1_MTRNR2L2", 
+     ylab = "Observed values for ENSG00000271043.1_MTRNR2L2")
+abline(0,1, col = "red")
+
 PredictivePerformanceLm(
   y = "ENSG00000271043.1_MTRNR2L2",
   data.set = mydat,
   training.data = train.mydat,
   lm.training = lm.fit.two.tissues.best.genes
 )
+# what is we transform the data with log again as last week?????? ####
+
+log.mydat <- log(mydat[-ncol(mydat)])
+
+is.finite.data.frame <- function(obj){
+  sapply(obj,FUN = function(x) all(is.finite(x)))
+}
+
+# Check if there are any infs in the log-transformed datasets.
+is.finite.data.frame(log.mydat)
+
+
+# Works only on matrixes
+log.mydat <- as.matrix(log.mydat)
+
+# Replace any non finites with 0, this is needed to get the logs to work.
+log.mydat[!is.finite(log.mydat)] <- 0
+
+
+# Converted back to a data.frame for the lm's.
+log.mydat <- as.data.frame(log.mydat)
+
+lm.fit.two.tissues.best.genes.log <-
+  lm(
+    ENSG00000271043.1_MTRNR2L2  ~ ENSG00000258283.1_RP11.386G11.3 + ENSG00000100362.8_PVALB + ENSG00000198121.9_LPAR1 +ENSG00000139899.6_CBLN3 +ENSG00000165802.15_NSMF,
+    data = log.mydat,
+    subset = train.mydat
+  )
+
+plot(lm.fit.two.tissues.best.genes.log)
+preds <- predict(lm.fit.two.tissues.best.genes.log, newdata = mydat[- train.mydat,])
+
+plot(log.mydat$ENSG00000271043.1_MTRNR2L2 [- train.mydat], preds,
+     xlab = "Predicted values for ENSG00000271043.1_MTRNR2L2", 
+     ylab = "Observed values for ENSG00000271043.1_MTRNR2L2",
+     main = "Log transformation best genes")
+abline(0,1, col = "red")
+
+PredictivePerformanceLm(
+  y = "ENSG00000229344.1_RP5.857K21.7",
+  data.set = log.mydat,
+  training.data = train.mydat,
+  lm.training = lm.fit.two.tissues.best.genes.log
+)
+
+
 # R-square =  -0.03732637
 # Fraction of variability explained by the model =  0.0712916
 
@@ -1109,7 +1252,7 @@ PredictivePerformanceLm(
 # Create a tree for everything besides the best features
 tree.all.besides.best <-
   tree(
-    tissue ~ . - ENSG00000221890.2_NPTXR+-ENSG00000183379.4_SYNDIG1L+-ENSG00000130558.14_OLFM1+-ENSG00000104888.5_SLC17A7+-ENSG00000124785.4_NRN1,
+    tissue ~ . - ENSG00000258283.1_RP11.386G11.3+-ENSG00000100362.8_PVALB+-ENSG00000198121.9_LPAR1+-ENSG00000139899.6_CBLN3+-ENSG00000165802.15_NSMF,
     data = mydat,
     subset = train.mydat
   )
@@ -1133,7 +1276,7 @@ error.rate.prediction.trees(
 
 svm.linear.all.besides.best <-
   svm(
-    tissue ~ . - ENSG00000221890.2_NPTXR+-ENSG00000183379.4_SYNDIG1L+-ENSG00000130558.14_OLFM1+-ENSG00000104888.5_SLC17A7+-ENSG00000124785.4_NRN1,
+    tissue ~ . - ENSG00000258283.1_RP11.386G11.3+-ENSG00000100362.8_PVALB+-ENSG00000198121.9_LPAR1+-ENSG00000139899.6_CBLN3+-ENSG00000165802.15_NSMF,
     data = mydat,
     subset = train.mydat,
     kernel = "linear",
@@ -1142,11 +1285,11 @@ svm.linear.all.besides.best <-
 
 svm.poly.all.besides.best <-
   svm(
-    tissue ~ . - ENSG00000221890.2_NPTXR+-ENSG00000183379.4_SYNDIG1L+-ENSG00000130558.14_OLFM1+-ENSG00000104888.5_SLC17A7+-ENSG00000124785.4_NRN1,
+    tissue ~ . - ENSG00000258283.1_RP11.386G11.3+-ENSG00000100362.8_PVALB+-ENSG00000198121.9_LPAR1+-ENSG00000139899.6_CBLN3+-ENSG00000165802.15_NSMF,
     data = mydat,
     subset = train.mydat,
     kernel = "polynomial",
-    cost = 43.2
+    cost = 1
   )
 
 # Error rate SVM linear classification problem for worst genes.
@@ -1160,7 +1303,7 @@ error.rate.prediction.trees(svm.poly.all.besides.best,
                             test.set = -train.mydat)
 
 rf.all.besides.best <- randomForest(
-  tissue ~ . - ENSG00000221890.2_NPTXR+-ENSG00000183379.4_SYNDIG1L+-ENSG00000130558.14_OLFM1+-ENSG00000104888.5_SLC17A7+-ENSG00000124785.4_NRN1,
+  tissue ~ . - ENSG00000258283.1_RP11.386G11.3+-ENSG00000100362.8_PVALB+-ENSG00000198121.9_LPAR1+-ENSG00000139899.6_CBLN3+-ENSG00000165802.15_NSMF,
   data = mydat,
   subset = train.mydat,
   mtry = (5 - 1) / 2,
