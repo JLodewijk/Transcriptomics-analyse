@@ -1225,7 +1225,7 @@ plot(
   pve,
   xlab = "Principal Component",
   ylab = "Proportion of Variance Explained",
-  main = "Proportion of Variance Explained Non-scaled PCA",
+  main = "Proportion of Variance Explained Unscaled PCA",
   ylim = c(0, 1),
   type = 'b'
 )
@@ -1233,7 +1233,7 @@ plot(
   cumsum(pve),
   xlab = "Principal Component",
   ylab = "Cumulative Proportion of Variance Explained",
-  main = "Cumulative Proportion of Variance Explained Non-scaled PCA",
+  main = "Cumulative Proportion of Variance Explained Unscaled PCA",
   ylim = c(0, 1) ,
   type = 'b'
 )
@@ -1253,22 +1253,28 @@ sapply(Cols(unique(expr4T.filtered$tissue)), color.id)
 
 #plotting samples after transformation:
 
-plot(pr.out.scale$x[, 1:2],
-     col = Cols(expr4T.filtered$tissue),
-     pch = 19)
-
-pr.out.scale$rotation
-
-cbind(pr.out.scale$x[, 1:2], expr4T.filtered$tissue)
-
+par(mfrow = c(1, 2))
 
 plot(pr.out$x[, 1:2],
+     main = "PCA Unscaled Tissue Placement",
      col = Cols(expr4T.filtered$tissue),
      pch = 19)
 
-pr.out$rotation
+# pr.out$rotation
 
-cbind(pr.out$x[, 1:2], expr4T.filtered$tissue)
+
+
+plot(pr.out.scale$x[, 1:2],
+     main = "PCA Scaled Tissue Placement",
+     col = Cols(expr4T.filtered$tissue),
+     pch = 19)
+
+# pr.out.scale$rotation
+
+# cbind(pr.out.scale$x[, 1:2], expr4T.filtered$tissue)
+# cbind(pr.out$x[, 1:2], expr4T.filtered$tissue)
+
+
 
 # Which genes contribute substantially to first or second PC:
 
@@ -1288,6 +1294,8 @@ pr.out$rotation[which(abs(pr.out$rotation[, 1]) > 0.2 |
 # Look at which genes contribute substantially to each principal component loading vectors.
 pr.out$rotation[which(abs(pr.out$rotation[, 1]) > 0.2), ]
 pr.out.scale$rotation[which(abs(pr.out.scale$rotation[, 1]) > 0.2), ]
+
+
 
 # 2. Apply hierarchical clustering, testing two different distance methods and
 # two different linkages. Also apply K-means clustering. Finally, use the PCA
