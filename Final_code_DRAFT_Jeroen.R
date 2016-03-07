@@ -84,7 +84,20 @@ GlmPredictionErrorRate <-
     return(1 - mean(glm.pred == test.data$tissue))
   }
 
-### PredictivePerformanceLm ###
+#' QdaLdaPredictionError
+#' Gives the prediction made by a lda or qda on the 
+#' @param model: qda or lda fit thas has been performed.
+#' @param test.data: A test dataset, that doesn't contain any trainings data.
+#'
+#' @return Table of predictions and the error rate of the predictions against the test data.
+QdaLdaPredictionError <- function(model, test.data){
+  class <- predict(model, test.set)$class
+  print(table(class, test.set$tissue))
+  return(1 - mean(class == test.set$tissue))
+}
+
+
+#' PredictivePerformanceLm
 #' Check how well the predictive performance is of the linear model.
 #' @param y: the y used in the creation of the linear model.
 #' @param data.set: the dataset that has been used for the creation of the linear model.
@@ -605,6 +618,7 @@ abline(0, 1, col = "red")
 
 log.mydat <-
   log.mydat[, 1:70] #again we select a small data set, otherwise it doesn't work
+
 #Two tissue model
 lm.fit.1.two.tissues.log <-
   lm(ENSG00000271043.1_MTRNR2L2 ~ .,
@@ -617,6 +631,7 @@ plot(lm.fit.1.two.tissues.log)
 #Predicted values
 test.pred <-
   predict(lm.fit.1.two.tissues.log, newdata = log.mydat[-train.mydat,])
+
 #Plot predicted against observed
 plot(
   log.mydat$ENSG00000271043.1_MTRNR2L2[-train.mydat],
@@ -728,30 +743,24 @@ glm.fit <- glm(tissue ~ .,
                subset = train)
 
 #predictions
-probs <-  predict(fit, test.set, type = "response")
-pred <- rep(tissue1, nrow(test.set))
-pred[probs > 0.5] = tissue2
-table(pred, test.set$tissue)
+GlmPredictionErrorRate(glm.fit = glm.fit, tissue.1 = tissue1, tissue.2 = tissue2,test.data = test.set)
 
-1 - mean(pred == test.set$tissue)
 #LDA model####
 lda.fit <- lda(tissue ~ .,
                data = mydat,
                subset = train)
+QdaLdaPredictionError(model = lda.fit, test.data = test.set)
 
-lda.pred <- predict(lda.fit, test.set)
-lda.class <- lda.pred$class
-table(lda.class, test.set$tissue)
-1 - mean(lda.class == test.set$tissue)
 #QDA model ####
-qda.fit <- qda(tissue ~ .,
+qda.fit <- qda(tissue ~ ., # DOES NOT WORK
                data = mydat,
                subset = train)
 qda.class <- predict(qda.fit, test.set)$class
 table(qda.class, test.set$tissue)
 1 - mean(qda.class == test.set$tissue)
-#KNN model ####
+QdaLdaPredictionError(model = qda.fit, test.data = test.set)
 
+#KNN model ####
 knn.pred <-
   knn(mydat[train, ][, 1:10], test.set[, 1:10], mydat$tissue[train], k =
         1)
@@ -764,34 +773,26 @@ log.added <- data.frame(mydat, log.term)
 set.seed(1)
 train <- sample(1:nrow(log.added), round(nrow(log.added) * 0.35))
 test.set <- mydat[-train, ]
+
+#LDA model####
 lda.fit <- lda(tissue ~ .,
                data = log.added,
                subset = train)
+QdaLdaPredictionError(model = lda.fit, test.data = test.set)
 
-lda.pred <- predict(lda.fit, test.set)
-lda.class <- lda.pred$class
-table(lda.class, test.set$tissue)
-1 - mean(lda.class == test.set$tissue)
-
+#GLM model####
 glm.fit <- glm(tissue ~ .,
                data = log.added,
                family = binomial,
                subset = train)
+GlmPredictionErrorRate(glm.fit = glm.fit, tissue.1 = tissue1, tissue.2 = tissue2,test.data = test.set)
 
-#predictions
-probs <-  predict(glm.fit, test.set, type = "response")
-pred <- rep(tissue1, nrow(test.set))
-pred[probs > 0.5] = tissue2
-table(pred, test.set$tissue)
 
-1 - mean(pred == test.set$tissue)
-
+#QDA model ####
 qda.fit <- qda(tissue ~ .,
                data = log.added,
                subset = train)
-qda.class <- predict(qda.fit, test.set)$class
-table(qda.class, test.set$tissue)
-1 - mean(qda.class == test.set$tissue)
+QdaLdaPredictionError(model = qda.fit, test.data = test.set)
 
 ####################################################################################################################################
 ####################################################################################################################################
