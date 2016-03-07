@@ -755,9 +755,6 @@ QdaLdaPredictionError(model = lda.fit, test.data = test.set)
 qda.fit <- qda(tissue ~ ., # DOES NOT WORK
                data = mydat,
                subset = train)
-qda.class <- predict(qda.fit, test.set)$class
-table(qda.class, test.set$tissue)
-1 - mean(qda.class == test.set$tissue)
 QdaLdaPredictionError(model = qda.fit, test.data = test.set)
 
 #KNN model ####
@@ -1180,6 +1177,38 @@ error.rate.prediction.trees(
 # Error rate tree.tissue: 0.03649635
 
 #The same error rate.
+
+# SVM on the best features.
+svm.linear.best <-
+  svm(
+    tissue ~ ENSG00000258283.1_RP11.386G11.3+ ENSG00000100362.8_PVALB + ENSG00000198121.9_LPAR1 + ENSG00000139899.6_CBLN3 + ENSG00000165802.15_NSMF,
+    data = mydat,
+    subset = train.mydat,
+    kernel = "linear",
+    cost = 0.1
+  )
+
+svm.poly.best <-
+  svm(
+    tissue ~ ENSG00000258283.1_RP11.386G11.3+ ENSG00000100362.8_PVALB + ENSG00000198121.9_LPAR1 + ENSG00000139899.6_CBLN3 + ENSG00000165802.15_NSMF,
+    data = mydat,
+    subset = train.mydat,
+    kernel = "polynomial",
+    cost = 1
+  )
+
+error.rate.prediction.trees(
+  tree.data = svm.linear.best,
+  dataset = mydat,
+  test.set = -train.mydat
+)
+
+error.rate.prediction.trees(
+  tree.data = svm.poly.best,
+  dataset = mydat,
+  test.set = -train.mydat
+)
+
 
 rf.best.genes <- randomForest(
   tissue ~ ENSG00000258283.1_RP11.386G11.3 + ENSG00000100362.8_PVALB + ENSG00000198121.9_LPAR1 +ENSG00000139899.6_CBLN3 +ENSG00000165802.15_NSMF,
